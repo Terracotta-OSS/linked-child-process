@@ -1,0 +1,90 @@
+Quickstart Guide
+
+	This project is just like any other Maven project. All that is needed is for it
+	and its dependencies to be accessible from a known Maven repository somewhere.
+
+	If you don't have access to a Maven repository, then before you can use this project,
+   you will first need to install its dependencies into your local Maven repository.
+
+* Run ${project.name} Using the Packaged Source
+
+	Download a source package:
+
+---
+$ curl -o ${project.artifactId}-${project.version}-src.zip \
+  http://forge.terracotta.org/projects/${project.artifactId}/downloads/${project.artifactId}-${project.version}-src.zip
+---
+
+	Unpack:
+
+---
+$ unzip ${project.artifactId}-${project.version}-src.zip
+---
+
+	Compile and run:
+
+---
+$ cd ${project.artifactId}-${project.version}
+$ mvn clean tc:run
+---
+
+* Run ${project.name} Using the Source from Subversion
+
+	Checkout the project:
+
+---
+$ svn checkout \
+  ${project.scm.url} \
+  ${project.artifactId}-${project.version}
+---
+
+	Compile and run:
+
+---
+$ cd ${project.artifactId}-${project.version}
+$ mvn clean tc:run
+---
+
+* What to Expect
+
+	${project.name} is configured to launch two instances of the application.
+
+* Terracotta's Maven Repository
+
+	At the time of this writing, the {{{http://forge.terracotta.org}Terracotta Forge}} artifacts are
+	not yet available from Maven's central repository.
+
+	So if you are going to use this artifact, and you haven't installed it yet in your local Maven
+	repository, then you will need a way to tell your project where it can be found.
+
+	Terracotta's Maven repository URL is:
+
+---
+http://www.terracotta.org/download/reflector/maven2
+---
+
+	To tell Maven about this location, you can set the <<<remoteRepositories>>> property by including the
+	following in the command line when you invoke Maven:
+
+
+---
+-DremoteRepositories=http://www.terracotta.org/download/reflector/maven2
+---
+
+	If your project has other Terracotta Artifact's as dependencies, you will have to add the
+	following sections into your project's POM:
+
+---
+<repositories>
+	<repository>
+		<id>terracotta-repository</id>
+		<url>http://www.terracotta.org/download/reflector/maven2</url>
+	</repository>
+</repositories>
+<pluginRepositories>
+	<pluginRepository>
+		<id>terracotta-repository</id>
+		<url>http://www.terracotta.org/download/reflector/maven2</url>
+	</pluginRepository>
+</pluginRepositories>
+---

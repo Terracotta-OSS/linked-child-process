@@ -1,0 +1,73 @@
+Install Guide
+
+	There are several ways you can take to install this project's artifact into your
+	local Maven repository. Anyone of them will do.
+
+	After installation, head over to the {{{quickstart.html}Quickstart Guide}} for
+	instructions on how to use it.
+
+* Install Using the Packaged Binaries
+
+	Download a binary package:
+
+---
+$ curl -o ${project.artifactId}-${project.version}-bin.zip \
+  http://forge.terracotta.org/projects/${project.artifactId}/downloads/${project.artifactId}-${project.version}-bin.zip
+---
+
+	Unpack:
+
+---
+$ unzip ${project.artifactId}-${project.version}-bin.zip
+---
+
+	Install:
+
+---
+$ cd ${project.artifactId}-${project.version}
+$ mvn install:install-file \
+  -DgroupId=${project.groupId} \
+  -DartifactId=${project.artifactId} \
+  -Dversion=${project.version} \
+  -Dpackaging=jar \
+  -Dfile=${project.artifactId}-${project.version}.jar
+---
+
+* Install Using the Packaged Source
+
+	Download a source package:
+
+---
+$ curl -o ${project.artifactId}-${project.version}-src.zip \
+  http://forge.terracotta.org/projects/${project.artifactId}/downloads/${project.artifactId}-${project.version}-src.zip
+---
+
+	Unpack:
+
+---
+$ unzip ${project.artifactId}-${project.version}-src.zip
+---
+
+	Install:
+
+---
+$ cd ${project.artifactId}-${project.version}
+$ mvn clean install
+---
+
+* Install Using the Source from Subversion
+
+	Checkout the project:
+
+---
+$ svn checkout \
+  ${project.scm.url} \
+  ${project.artifactId}-${project.version}
+---
+
+	Install:
+
+---
+$ cd ${project.artifactId}-${project.version}
+$ mvn clean install
+---
