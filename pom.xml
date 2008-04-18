@@ -117,4 +117,18 @@
       </snapshots>
     </pluginRepository>
   </pluginRepositories>
+
+  <distributionManagement>
+    <repository>
+      <id>kong</id>
+      <name>Kong Repository</name>
+      <url>scpexe://kong/export1/maven2</url>
+    </repository>
+    <snapshotRepository>
+      <id>kong</id>
+      <name>Kong Repository</name>
+      <url>scpexe://kong/export1/maven2</url>
+    </snapshotRepository>
+  </distributionManagement>
+
 </project>
