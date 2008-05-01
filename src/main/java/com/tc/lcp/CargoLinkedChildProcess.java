@@ -2,10 +2,7 @@
  * All content copyright (c) 2003-2006 Terracotta, Inc., except as may otherwise be noted in a separate copyright
  * notice. All rights reserved.
  */
-package com.tc.test.server.appserver.cargo;
-
-import com.tc.process.HeartBeatService;
-import com.tc.process.LinkedJavaProcessPollingAgent;
+package com.tc.lcp;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,8 +11,9 @@ import java.lang.reflect.Method;
 import java.util.Enumeration;
 import java.util.Properties;
 
+
 /**
- * This class serves three purposes. It delegates to {@link LinkedJavaProcessPollingAgent} to page the parent process.
+ * This class serves three purposes. It delegates to {@link HeartBeatService} to page the parent process.
  * And it loads a properties file which was written by the parent process (in the same directory as the log) and sets
  * all name value pairs as system properties for the appserver's JVM. This makes these available to servlets running in
  * the container.
