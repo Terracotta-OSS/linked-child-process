@@ -198,11 +198,15 @@ public class LinkedJavaProcess {
       // be found when using DNS
 
       if (!env.containsKey("SYSTEMROOT")) {
-        String root = System.getenv("windir");
-        if (root == null) {
-          throw new RuntimeException(
-              "cannot find %SYSTEMROOT% in the environment");
+        String root = ":\\Windows";
+        int i;
+        for (i = 'c'; i <= 'z'; i++) {
+          if (new File(i + root).exists()) {
+            root = i + root;
+            break;
+          }
         }
+        if (i > 'z') throw new RuntimeException("Can't find windir");
         env.put("SYSTEMROOT", root);
       }
 
