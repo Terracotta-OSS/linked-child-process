@@ -199,7 +199,7 @@ public class LinkedJavaProcess {
 
       if (!env.containsKey("SYSTEMROOT")) {
         String root = ":\\Windows";
-        int i;
+        char i;
         for (i = 'c'; i <= 'z'; i++) {
           if (new File(i + root).exists()) {
             root = i + root;
