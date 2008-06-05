@@ -138,8 +138,6 @@ public class LinkedJavaProcess {
     List fullCommandList = new LinkedList();
     List allJavaArguments = new ArrayList();
 
-    allJavaArguments.add("-Djava.class.path="
-        + System.getProperty("java.class.path"));
     allJavaArguments.add("-Dcom.tc.l1.modules.repositories="
         + System.getProperty("com.tc.l1.modules.repositories"));
     if (this.javaArguments != null)
