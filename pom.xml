@@ -15,7 +15,7 @@
   <artifactId>linked-child-process</artifactId>
   <version>1.0.3-SNAPSHOT</version>
   <name>linked-child-process</name>
-  <description>Utility library for ..</description>
+  <description>Utility library for ...</description>
 
   <scm>
     <connection>scm:git:git@github.softwareag.com:Terracotta-OSS/linked-child-process.git</connection>
