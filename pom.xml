@@ -17,6 +17,13 @@
   <name>linked-child-process</name>
   <description>Utility library for ...</description>
 
+  <licenses>
+    <license>
+      <name>Terracotta Public License</name>
+      <url>http://www.terracotta.org/license.txt</url>
+    </license>
+  </licenses>
+
   <scm>
     <connection>scm:git:git@github.softwareag.com:Terracotta-OSS/linked-child-process.git</connection>
     <developerConnection>scm:git:https://github.softwareag.com/Terracotta-OSS/linked-child-process.git</developerConnection>
