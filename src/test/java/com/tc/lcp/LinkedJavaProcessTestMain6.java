@@ -8,6 +8,6 @@ public class LinkedJavaProcessTestMain6 {
   
   // simulates hung process
   public static void main(String[] args) throws InterruptedException {
-    Thread.currentThread().join();
+    Thread.sleep(5 * 60 * 1000);
   }
 }

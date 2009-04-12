@@ -13,7 +13,7 @@ import junit.framework.TestCase;
  * Unit test for {@link LinkedJavaProcess}.
  */
 public class LinkedJavaProcessTest extends TestCase {
-  private static final boolean DEBUG = false;
+  private static final boolean DEBUG = true;
 
   public void testRunsRightCommand() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(
@@ -134,8 +134,8 @@ public class LinkedJavaProcessTest extends TestCase {
   public void testMaxRuntime() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(
         LinkedJavaProcessTestMain6.class.getName(), new String[] {});
-    System.out.println("Set max runtime to 5s");
-    process.setMaxRuntime(5);
+    System.out.println("Set max runtime to 3s");
+    process.setMaxRuntime(3);
     process.start();
     Thread.sleep(7000);
     System.out.println("After waiting for 7s. This process should have been shutdown");
