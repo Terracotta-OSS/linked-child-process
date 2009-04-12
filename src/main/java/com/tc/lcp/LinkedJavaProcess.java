@@ -22,15 +22,14 @@ import java.util.Map;
  * if the parent dies, the child dies a short time thereafter. Useful for
  * avoiding 'zombie child processes' when writing tests, etc. &mdash; otherwise,
  * if the parent process crashes or otherwise terminates abnormally, you'll get
- * child processes accumulating until all hell breaks loose on the box.
- * </p>
+ * child processes accumulating until all hell breaks loose on the box. </p>
  * <p>
  * Although it can't actually be related through Java inheritance (because
  * {@link Process}is a class, not an interface), this class behaves essentially
  * identical to {@link Process}with two differences:
  * <ul>
- * <li>You instantiate this class directly, rather than getting an instance
- * from {@link Runtime#exec}.</li>
+ * <li>You instantiate this class directly, rather than getting an instance from
+ * {@link Runtime#exec}.</li>
  * <li>The process doesn't start until you call {@link #start}.</li>
  * </ul>
  */
@@ -43,6 +42,7 @@ public class LinkedJavaProcess {
   private String[]       environment;
   private File           directory;
   private File           javaExecutable;
+  private long           maxRuntime; // in seconds
 
   private Process        process;
   private boolean        running;
@@ -61,6 +61,14 @@ public class LinkedJavaProcess {
     this.javaExecutable = null;
     this.process = null;
     this.running = false;
+  }
+
+  public void setMaxRuntime(long maxRuntime) {
+    this.maxRuntime = maxRuntime;
+  }
+
+  public long getMaxRuntime() {
+    return maxRuntime;
   }
 
   public File getJavaHome() {
@@ -142,6 +150,8 @@ public class LinkedJavaProcess {
         + System.getProperty("java.class.path"));
     allJavaArguments.add("-Dcom.tc.l1.modules.repositories="
         + System.getProperty("com.tc.l1.modules.repositories"));
+    allJavaArguments
+        .add("-Dlinked-java-process-max-runtime=" + getMaxRuntime());
     if (this.javaArguments != null)
       allJavaArguments.addAll(Arrays.asList(this.javaArguments));
 
@@ -206,7 +216,8 @@ public class LinkedJavaProcess {
             break;
           }
         }
-        if (i > 'z') throw new RuntimeException("Can't find windir");
+        if (i > 'z')
+          throw new RuntimeException("Can't find windir");
         env.put("SYSTEMROOT", root);
       }
 

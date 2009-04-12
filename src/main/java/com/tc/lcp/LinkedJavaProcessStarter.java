@@ -5,6 +5,8 @@
 package com.tc.lcp;
 
 import java.lang.reflect.Method;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * Runs another main class, with full arguments, but first establishes a socket
@@ -24,11 +26,33 @@ public class LinkedJavaProcessStarter {
 
     HeartBeatService.registerForHeartBeat(pingPort, childClass);
 
-    final Class mainClass = Class.forName(childClass);
+    scheduleShutdownTimer();
 
+    final Class mainClass = Class.forName(childClass);
     Method mainMethod = mainClass.getMethod("main",
         new Class[] { String[].class });
     mainMethod.invoke(null, new Object[] { realArgs });
+  }
 
+  public static long getMaxRuntime() {
+    return Long.parseLong(System.getProperty("linked-java-process-max-runtime",
+        "0"));
+  }
+
+  public static void scheduleShutdownTimer() {
+    long maxRuntimeInSeconds = getMaxRuntime();
+    if (maxRuntimeInSeconds > 0) {
+      Timer timer = new Timer(true);
+      timer.schedule(new ShutdownTask(), maxRuntimeInSeconds * 1000);
+    }
+  }
+
+  static class ShutdownTask extends TimerTask {
+    public void run() {
+      System.err.println("Max runtime hit (" + getMaxRuntime()
+          + "s). Force exit");
+      System.err.flush();
+      System.exit(255);
+    }
   }
 }
