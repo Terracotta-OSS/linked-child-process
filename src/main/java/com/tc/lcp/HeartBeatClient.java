@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -15,16 +16,23 @@ import java.util.Date;
 
 public class HeartBeatClient extends Thread {
   private static final int  HEARTBEAT_TIMEOUT = HeartBeatServer.PULSE_INTERVAL * 2;
-  private static DateFormat DATEFORMAT        = new SimpleDateFormat("HH:mm:ss.SSS");
+  private static DateFormat DATEFORMAT        = new SimpleDateFormat(
+                                                  "HH:mm:ss.SSS");
 
   private Socket            socket;
   private boolean           isAppServer       = false;
   private String            clientName;
   private int               missedPulse       = 0;
+  private int               listenPort;
 
   public HeartBeatClient(int listenPort, String clientName, boolean isAppServer) {
     this.isAppServer = isAppServer;
     this.clientName = clientName;
+    this.listenPort = listenPort;
+    createSocket();
+  }
+
+  private void createSocket() {
     try {
       socket = new Socket("localhost", listenPort);
       socket.setSoTimeout(HEARTBEAT_TIMEOUT);
@@ -35,13 +43,17 @@ public class HeartBeatClient extends Thread {
   }
 
   public static void log(String message) {
-    System.out.println(DATEFORMAT.format(new Date()) + " - HeartBeatClient: " + message);
+    System.out.println(DATEFORMAT.format(new Date()) + " - HeartBeatClient: "
+        + message);
   }
 
   public void run() {
+    BufferedReader in = null;
+    PrintWriter out = null;
+    boolean shouldExitOnException = true;
     try {
-      BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-      PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+      in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+      out = new PrintWriter(socket.getOutputStream(), true);
 
       // introduce myself to the server
       // sending clientName
@@ -54,7 +66,8 @@ public class HeartBeatClient extends Thread {
           if (signal == null) {
             throw new Exception("Null signal");
           } else if (HeartBeatServer.PULSE.equals(signal)) {
-            log("Received pulse from heartbeat server, port " + socket.getLocalPort());
+            log("Received pulse from heartbeat server, port "
+                + socket.getLocalPort());
             out.println(signal);
             missedPulse = 0;
           } else if (HeartBeatServer.KILL.equals(signal)) {
@@ -73,22 +86,47 @@ public class HeartBeatClient extends Thread {
             throw new Exception("Unknown signal");
           }
         } catch (SocketTimeoutException toe) {
-          log("No pulse received for " + (HEARTBEAT_TIMEOUT / 1000) + " seconds");
+          log("No pulse received for " + (HEARTBEAT_TIMEOUT / 1000)
+              + " seconds");
           log("Missed pulse count: " + missedPulse++);
-          if (missedPulse >= HeartBeatServer.MISS_ALLOW) { throw new Exception("Missing " + HeartBeatServer.MISS_ALLOW
-                                                                               + " pulses from HeartBeatServer"); }
+          if (missedPulse >= HeartBeatServer.MISS_ALLOW) {
+            throw new Exception("Missing " + HeartBeatServer.MISS_ALLOW
+                + " pulses from HeartBeatServer");
+          }
         }
+      }
+    } catch (SocketException e) {
+      shouldExitOnException = !shouldExitOnException;
+      log("Got a Socket exception: " + e.getMessage());
+      if (!shouldExitOnException) {
+        log("Trying to open a socket again ");
+      }
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e2) {
+        // do nothing
+      }
+      createSocket();
+      try {
+        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        out = new PrintWriter(socket.getOutputStream(), true);
+      } catch (Exception e1) {
+        log("Caught exception in heartbeat client. Killing self.");
+        e.printStackTrace();
+        shouldExitOnException = true;
       }
     } catch (Throwable e) {
       log("Caught exception in heartbeat client. Killing self.");
       e.printStackTrace();
     } finally {
-      try {
-        socket.close();
-      } catch (Exception e) {
-        // ignored
+      if (shouldExitOnException) {
+        try {
+          socket.close();
+        } catch (Exception e) {
+          // ignored
+        }
+        System.exit(100);
       }
-      System.exit(100);
     }
   }
 
