@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.terracotta.forge</groupId>
     <artifactId>application-parent</artifactId>
-    <version>1.0.8</version>
+    <version>1.0.9</version>
   </parent>
 
   <packaging>jar</packaging>
@@ -54,6 +54,15 @@
       <timezone>-5</timezone>
     </developer>
   </developers>
+
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>3.8.2</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 
   <build>
     <plugins>
@@ -111,18 +120,5 @@
       </snapshots>
     </pluginRepository>
   </pluginRepositories>
-
-  <distributionManagement>
-    <repository>
-      <id>kong</id>
-      <name>Kong Repository</name>
-      <url>scpexe://kong/export1/maven2</url>
-    </repository>
-    <snapshotRepository>
-      <id>kong</id>
-      <name>Kong Repository</name>
-      <url>scpexe://kong/export1/maven2</url>
-    </snapshotRepository>
-  </distributionManagement>
 
 </project>
