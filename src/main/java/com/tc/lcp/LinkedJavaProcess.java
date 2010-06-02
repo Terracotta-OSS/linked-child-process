@@ -31,7 +31,7 @@ import java.util.Map;
  * <li>The process doesn't start until you call {@link #start}.</li>
  * </ul>
  */
-public class LinkedJavaProcess {
+public class LinkedJavaProcess extends Process {
 
   private File                     javaHome;
   private final String             mainClassName;
@@ -151,7 +151,7 @@ public class LinkedJavaProcess {
     }
   }
 
-  public synchronized Process start() throws IOException {
+  public synchronized void start() throws IOException {
     if (this.running)
       throw new IllegalStateException(
           "This LinkedJavaProcess is already running.");
@@ -193,8 +193,6 @@ public class LinkedJavaProcess {
     this.process = Runtime.getRuntime().exec(command, makeEnv(env),
         this.directory);
     this.running = true;
-    
-    return process;
   }
 
   private Map<String, String> makeEnvMap(List<String> list) {
