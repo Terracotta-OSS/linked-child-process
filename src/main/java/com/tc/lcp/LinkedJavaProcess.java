@@ -43,7 +43,7 @@ public class LinkedJavaProcess {
   private long                     maxRuntime = 900;                                               // in
                                                                                                     // seconds
   private String                   classpath;
-
+  private String[]                 command;
   private Process                  process;
   private boolean                  running;
   private boolean                  addL1Repos = true;
@@ -151,7 +151,7 @@ public class LinkedJavaProcess {
     }
   }
 
-  public synchronized void start() throws IOException {
+  public synchronized Process start() throws IOException {
     if (this.running)
       throw new IllegalStateException(
           "This LinkedJavaProcess is already running.");
@@ -186,11 +186,15 @@ public class LinkedJavaProcess {
     fullCommandList.add(mainClassName);
     fullCommandList.addAll(arguments);
 
-    String[] fullCommand = (String[]) fullCommandList
+    command = (String[]) fullCommandList
         .toArray(new String[fullCommandList.size()]);
-    this.process = Runtime.getRuntime().exec(fullCommand, makeEnv(env),
+    
+    System.err.println("Start java process with command: " + fullCommandList);
+    this.process = Runtime.getRuntime().exec(command, makeEnv(env),
         this.directory);
     this.running = true;
+    
+    return process;
   }
 
   private Map<String, String> makeEnvMap(List<String> list) {
@@ -257,6 +261,13 @@ public class LinkedJavaProcess {
       throw new IllegalStateException(
           "This LinkedJavaProcess is not yet running.");
     return this.process.getInputStream();
+  }
+  
+  public synchronized String[] getCommand() {
+    if (!this.running)
+      throw new IllegalStateException(
+          "This LinkedJavaProcess is not yet running.");
+    return this.command;
   }
 
   public InputStream STDOUT() {
