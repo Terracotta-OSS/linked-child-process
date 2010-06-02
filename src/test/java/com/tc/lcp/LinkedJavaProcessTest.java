@@ -21,7 +21,6 @@ public class LinkedJavaProcessTest {
   private static final boolean DEBUG = true;
 
   @Test
-  @Ignore
   public void testRunsRightCommand() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(
         LinkedJavaProcessTestMain1.class.getName());
@@ -71,7 +70,6 @@ public class LinkedJavaProcessTest {
   }
 
   @Test
-  @Ignore
   public void testIO() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(
         LinkedJavaProcessTestMain2.class.getName());
@@ -98,7 +96,6 @@ public class LinkedJavaProcessTest {
   }
 
   @Test
-  @Ignore
   public void testExitCode() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(
         LinkedJavaProcessTestMain3.class.getName());
@@ -109,7 +106,6 @@ public class LinkedJavaProcessTest {
   }
 
   @Test
-  @Ignore
   public void testSetup() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(
         LinkedJavaProcessTestMain4.class.getName());
