@@ -4,15 +4,15 @@
  */
 package com.tc.lcp;
 
-import com.tc.lcp.LinkedJavaProcess;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.Arrays;
 
 /**
- * A test program for {@link LinkedJavaProcessTest}that, in turn, spawns some of its own children as linked processes.
- * The test then kills this process, and makes sure that the children die, too.
+ * A test program for {@link LinkedJavaProcessTest}that, in turn, spawns some of
+ * its own children as linked processes. The test then kills this process, and
+ * makes sure that the children die, too.
  */
 public class LinkedJavaProcessTestMain5 {
 
@@ -21,10 +21,12 @@ public class LinkedJavaProcessTestMain5 {
     boolean spawnChildren = new Boolean(args[1]).booleanValue();
 
     if (spawnChildren) {
-      LinkedJavaProcess child1 = new LinkedJavaProcess(LinkedJavaProcessTestMain5.class.getName(), new String[] {
-          args[0] + "-child-1", "false" });
-      LinkedJavaProcess child2 = new LinkedJavaProcess(LinkedJavaProcessTestMain5.class.getName(), new String[] {
-          args[0] + "-child-2", "false" });
+      LinkedJavaProcess child1 = new LinkedJavaProcess(
+          LinkedJavaProcessTestMain5.class.getName(), Arrays.asList(args[0]
+              + "-child-1", "false"));
+      LinkedJavaProcess child2 = new LinkedJavaProcess(
+          LinkedJavaProcessTestMain5.class.getName(), Arrays.asList(args[0]
+              + "-child-2", "false"));
       child1.start();
       child2.start();
     }

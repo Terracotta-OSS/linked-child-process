@@ -50,7 +50,6 @@ public class HeartBeatClient extends Thread {
   public void run() {
     BufferedReader in = null;
     PrintWriter out = null;
-    boolean shouldExitOnException = true;
     try {
       in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
       out = new PrintWriter(socket.getOutputStream(), true);
@@ -58,7 +57,7 @@ public class HeartBeatClient extends Thread {
       // introduce myself to the server
       // sending clientName
       out.println(clientName + ":" + socket.getLocalPort());
-
+      log("Sent my name [" + clientName + "] to heartbeat server");
       while (true) {
         try {
           // will time out if it didn't get any pulse from server
@@ -88,44 +87,26 @@ public class HeartBeatClient extends Thread {
         } catch (SocketTimeoutException toe) {
           log("No pulse received for " + (HEARTBEAT_TIMEOUT / 1000)
               + " seconds");
-          log("Missed pulse count: " + missedPulse++);
+          log("Missed pulse count: " + missedPulse);
           if (missedPulse >= HeartBeatServer.MISS_ALLOW) {
-            throw new Exception("Missing " + HeartBeatServer.MISS_ALLOW
-                + " pulses from HeartBeatServer");
+            log("Missing " + HeartBeatServer.MISS_ALLOW + " pulses from HeartBeatServer, killing self");
+            System.exit(-1);
           }
+          missedPulse++;
+        } catch (SocketException e) {
+          log("Got a Socket exception: " + e.getMessage() + ". Parent may have died, killing self");
+          System.exit(-1);
         }
       }
-    } catch (SocketException e) {
-      shouldExitOnException = !shouldExitOnException;
-      log("Got a Socket exception: " + e.getMessage());
-      if (!shouldExitOnException) {
-        log("Trying to open a socket again ");
-      }
-      try {
-        Thread.sleep(1000);
-      } catch (InterruptedException e2) {
-        // do nothing
-      }
-      createSocket();
-      try {
-        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        out = new PrintWriter(socket.getOutputStream(), true);
-      } catch (Exception e1) {
-        log("Caught exception in heartbeat client. Killing self.");
-        e.printStackTrace();
-        shouldExitOnException = true;
-      }
-    } catch (Throwable e) {
+    } catch (Exception e) {
       log("Caught exception in heartbeat client. Killing self.");
       e.printStackTrace();
+      System.exit(-2);
     } finally {
-      if (shouldExitOnException) {
-        try {
-          socket.close();
-        } catch (Exception e) {
-          // ignored
-        }
-        System.exit(100);
+      try {
+        socket.close();
+      } catch (Exception e) {
+        // ignored
       }
     }
   }

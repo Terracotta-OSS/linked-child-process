@@ -9,11 +9,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -35,32 +33,41 @@ import java.util.Map;
  */
 public class LinkedJavaProcess {
 
-  private File           javaHome;
-  private final String   mainClassName;
-  private String[]       javaArguments;
-  private final String[] arguments;
-  private String[]       environment;
-  private File           directory;
-  private File           javaExecutable;
-  private long           maxRuntime; // in seconds
+  private File                     javaHome;
+  private final String             mainClassName;
+  private final List<String>       javaArguments;
+  private final List<String>       arguments;
+  private List<String>             environment;
+  private File                     directory;
+  private File                     javaExecutable;
+  private long                     maxRuntime = 900;                                               // in
+                                                                                                    // seconds
+  private String                   classpath;
 
-  private Process        process;
-  private boolean        running;
-  private final List     copiers = Collections
-                                     .synchronizedList(new ArrayList());
+  private Process                  process;
+  private boolean                  running;
+  private boolean                  addL1Repos = true;
+  private final List<StreamCopier> copiers    = Collections
+                                                  .synchronizedList(new ArrayList<StreamCopier>());
 
-  public LinkedJavaProcess(String mainClassName, String[] classArguments) {
-    if (classArguments == null)
-      classArguments = new String[0];
-
+  public LinkedJavaProcess(String mainClassName, List<String> classArguments,
+      List<String> jvmArgs) {
     this.mainClassName = mainClassName;
-    this.javaArguments = null;
+    this.javaArguments = jvmArgs;
     this.arguments = classArguments;
-    this.environment = null;
+    this.environment = new ArrayList<String>();
     this.directory = null;
     this.javaExecutable = null;
     this.process = null;
     this.running = false;
+  }
+
+  public LinkedJavaProcess(String mainClassName) {
+    this(mainClassName, new ArrayList<String>(), new ArrayList<String>());
+  }
+
+  public LinkedJavaProcess(String mainClassName, List<String> classArguments) {
+    this(mainClassName, classArguments, new ArrayList<String>());
   }
 
   public void setMaxRuntime(long maxRuntime) {
@@ -71,6 +78,10 @@ public class LinkedJavaProcess {
     return maxRuntime;
   }
 
+  public void setClasspath(String classpath) {
+    this.classpath = classpath;
+  }
+
   public File getJavaHome() {
     return javaHome;
   }
@@ -79,24 +90,28 @@ public class LinkedJavaProcess {
     this.javaHome = javaHome;
   }
 
-  public LinkedJavaProcess(String mainClassName) {
-    this(mainClassName, null);
-  }
-
   public void setJavaExecutable(File javaExecutable) {
     this.javaExecutable = javaExecutable;
   }
 
-  public void setJavaArguments(String[] javaArguments) {
-    this.javaArguments = javaArguments;
+  public void addAllJvmArgs(List<String> jvmArgs) {
+    javaArguments.addAll(jvmArgs);
   }
 
-  public void setEnvironment(String[] environment) {
+  public void addJvmArg(String jvmArg) {
+    javaArguments.add(jvmArg);
+  }
+
+  public void setEnvironment(List<String> environment) {
     this.environment = environment;
   }
 
   public void setDirectory(File directory) {
     this.directory = directory;
+  }
+
+  public void setAddL1Repos(boolean flag) {
+    addL1Repos = flag;
   }
 
   public synchronized void destroy() {
@@ -143,64 +158,63 @@ public class LinkedJavaProcess {
 
     HeartBeatService.startHeartBeatService();
 
-    List fullCommandList = new LinkedList();
-    List allJavaArguments = new ArrayList();
+    List<String> fullCommandList = new ArrayList<String>();
+    List<String> allJavaArguments = new ArrayList<String>();
 
-    allJavaArguments.add("-Djava.class.path="
-        + System.getProperty("java.class.path"));
-    allJavaArguments.add("-Dcom.tc.l1.modules.repositories="
-        + System.getProperty("com.tc.l1.modules.repositories"));
-    allJavaArguments
-        .add("-Dlinked-java-process-max-runtime=" + getMaxRuntime());
-    if (this.javaArguments != null)
-      allJavaArguments.addAll(Arrays.asList(this.javaArguments));
+    allJavaArguments.add("-Djava.class.path=" + (classpath == null ? System
+        .getProperty("java.class.path") : classpath));
+
+    String l1Repos = System.getProperty("com.tc.l1.modules.repositories");
+    if (l1Repos != null && addL1Repos) {
+      allJavaArguments.add("-Dcom.tc.l1.modules.repositories=" + l1Repos);
+    }
+
+    allJavaArguments.add("-Dlinked-java-process-max-runtime=" + maxRuntime);
+    allJavaArguments.addAll(javaArguments);
 
     setJavaExecutableIfNecessary();
 
     int socketPort = HeartBeatService.listenPort();
 
-    Map env = makeEnvMap(Arrays
-        .asList(this.environment == null ? new String[] {} : this.environment));
+    Map<String, String> env = makeEnvMap(environment);
     fixupEnvironment(env);
 
-    fullCommandList.add(this.javaExecutable.getAbsolutePath());
+    fullCommandList.add(javaExecutable.getAbsolutePath());
     fullCommandList.addAll(allJavaArguments);
     fullCommandList.add(LinkedJavaProcessStarter.class.getName());
     fullCommandList.add(Integer.toString(socketPort));
-    fullCommandList.add(this.mainClassName);
-    if (this.arguments != null)
-      fullCommandList.addAll(Arrays.asList(this.arguments));
+    fullCommandList.add(mainClassName);
+    fullCommandList.addAll(arguments);
 
     String[] fullCommand = (String[]) fullCommandList
         .toArray(new String[fullCommandList.size()]);
-
     this.process = Runtime.getRuntime().exec(fullCommand, makeEnv(env),
         this.directory);
     this.running = true;
   }
 
-  private Map makeEnvMap(List list) {
-    Map rv = new HashMap();
+  private Map<String, String> makeEnvMap(List<String> list) {
+    Map<String, String> rv = new HashMap<String, String>();
 
-    for (Iterator iter = list.iterator(); iter.hasNext();) {
-      String[] nameValue = ((String) iter.next()).split("=", 2);
+    for (Iterator<String> iter = list.iterator(); iter.hasNext();) {
+      String[] nameValue = iter.next().split("=", 2);
       rv.put(nameValue[0], nameValue[1]);
     }
 
     return rv;
   }
 
-  private String[] makeEnv(Map env) {
+  private String[] makeEnv(Map<String, String> env) {
     int i = 0;
     String[] rv = new String[env.size()];
-    for (Iterator iter = env.keySet().iterator(); iter.hasNext(); i++) {
-      String key = (String) iter.next();
+    for (Iterator<String> iter = env.keySet().iterator(); iter.hasNext(); i++) {
+      String key = iter.next();
       rv[i] = key + "=" + env.get(key);
     }
     return rv;
   }
 
-  private static void fixupEnvironment(Map env) {
+  private static void fixupEnvironment(Map<String, String> env) {
     if ((System.getProperty("os.name").indexOf("Windows") >= 0)) {
       // A bunch of name lookup stuff will fail w/o setting SYSTEMROOT. Also, if
       // you have apple's rendevous/bonjour
@@ -323,8 +337,8 @@ public class LinkedJavaProcess {
 
     int exitCode = theProcess.waitFor();
 
-    for (Iterator i = copiers.iterator(); i.hasNext();) {
-      Thread t = (Thread) i.next();
+    for (Iterator<StreamCopier> i = copiers.iterator(); i.hasNext();) {
+      Thread t = i.next();
       t.join();
       i.remove();
     }

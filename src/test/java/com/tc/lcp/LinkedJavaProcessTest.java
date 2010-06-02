@@ -4,17 +4,24 @@
  */
 package com.tc.lcp;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 
-import junit.framework.TestCase;
+import org.junit.Ignore;
+import org.junit.Test;
 
 /**
  * Unit test for {@link LinkedJavaProcess}.
  */
-public class LinkedJavaProcessTest extends TestCase {
+public class LinkedJavaProcessTest {
   private static final boolean DEBUG = true;
 
+  @Test
+  @Ignore
   public void testRunsRightCommand() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(
         LinkedJavaProcessTestMain1.class.getName());
@@ -63,6 +70,8 @@ public class LinkedJavaProcessTest extends TestCase {
     return out.toString();
   }
 
+  @Test
+  @Ignore
   public void testIO() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(
         LinkedJavaProcessTestMain2.class.getName());
@@ -82,12 +91,14 @@ public class LinkedJavaProcessTest extends TestCase {
     outCollector.join(30000);
     errCollector.join(30000);
 
-    assertEquals("out: <Test Input!>", ignoreStandardWarnings(
-        outCollector.toString()).trim());
-    assertEquals("err: <Test Input!>", ignoreStandardWarnings(
-        errCollector.toString()).trim());
+    assertEquals("out: <Test Input!>",
+        ignoreStandardWarnings(outCollector.toString()).trim());
+    assertEquals("err: <Test Input!>",
+        ignoreStandardWarnings(errCollector.toString()).trim());
   }
 
+  @Test
+  @Ignore
   public void testExitCode() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(
         LinkedJavaProcessTestMain3.class.getName());
@@ -97,6 +108,8 @@ public class LinkedJavaProcessTest extends TestCase {
     assertEquals(57, process.exitValue());
   }
 
+  @Test
+  @Ignore
   public void testSetup() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(
         LinkedJavaProcessTestMain4.class.getName());
@@ -106,8 +119,8 @@ public class LinkedJavaProcessTest extends TestCase {
     assertTrue(dir.isDirectory());
     String pwd = dir.getCanonicalPath();
     process.setDirectory(dir);
-    process.setEnvironment(new String[] { "LD_LIBRARY_PATH=myenv" });
-    process.setJavaArguments(new String[] { "-Dljpt.foo=myprop" });
+    process.setEnvironment(Arrays.asList("LD_LIBRARY_PATH=myenv"));
+    process.addJvmArg("-Dljpt.foo=myprop");
 
     process.start();
 
@@ -131,24 +144,28 @@ public class LinkedJavaProcessTest extends TestCase {
     assertTrue(output.toLowerCase().indexOf(pwd.toLowerCase()) >= 0);
   }
 
+  @Test
+  @Ignore
   public void testMaxRuntime() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(
-        LinkedJavaProcessTestMain6.class.getName(), new String[] {});
+        LinkedJavaProcessTestMain6.class.getName());
     System.out.println("Set max runtime to 3s");
     process.setMaxRuntime(3);
     process.start();
     Thread.sleep(7000);
-    System.out.println("After waiting for 7s. This process should have been shutdown");
+    System.out
+        .println("After waiting for 7s. This process should have been shutdown");
     assertEquals(255, process.exitValue());
   }
 
+  @Test
   public void testKillingParentKillsChildren() throws Exception {
     File destFile = getTempFile("tkpkc-file");
     File child1File = new File(destFile.getAbsolutePath() + "-child-1");
     File child2File = new File(destFile.getAbsolutePath() + "-child-2");
     LinkedJavaProcess process = new LinkedJavaProcess(
-        LinkedJavaProcessTestMain5.class.getName(), new String[] {
-            destFile.getAbsolutePath(), "true" });
+        LinkedJavaProcessTestMain5.class.getName(), Arrays.asList(
+            destFile.getAbsolutePath(), "true"));
 
     process.start();
 
