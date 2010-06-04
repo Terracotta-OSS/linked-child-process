@@ -53,8 +53,8 @@ public class LinkedJavaProcess extends Process {
   public LinkedJavaProcess(String mainClassName, List<String> classArguments,
       List<String> jvmArgs) {
     this.mainClassName = mainClassName;
-    this.javaArguments = jvmArgs;
-    this.arguments = classArguments;
+    this.javaArguments = jvmArgs == null ? new ArrayList<String>() : jvmArgs;
+    this.arguments = classArguments == null ? new ArrayList<String>() : classArguments;
     this.environment = new ArrayList<String>();
     this.directory = null;
     this.javaExecutable = null;
