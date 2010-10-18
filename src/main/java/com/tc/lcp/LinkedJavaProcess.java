@@ -22,12 +22,10 @@ import java.util.Map;
  * if the parent process crashes or otherwise terminates abnormally, you'll get
  * child processes accumulating until all hell breaks loose on the box. </p>
  * <p>
- * Although it can't actually be related through Java inheritance (because
- * {@link Process}is a class, not an interface), this class behaves essentially
- * identical to {@link Process}with two differences:
+ * Although it can't actually be related through Java inheritance (because {@link Process}is a class, not an interface),
+ * this class behaves essentially identical to {@link Process}with two differences:
  * <ul>
- * <li>You instantiate this class directly, rather than getting an instance from
- * {@link Runtime#exec}.</li>
+ * <li>You instantiate this class directly, rather than getting an instance from {@link Runtime#exec}.</li>
  * <li>The process doesn't start until you call {@link #start}.</li>
  * </ul>
  */
@@ -40,18 +38,16 @@ public class LinkedJavaProcess extends Process {
   private List<String>             environment;
   private File                     directory;
   private File                     javaExecutable;
-  private long                     maxRuntime = 900;                                               // in
-                                                                                                    // seconds
+  private long                     maxRuntime = 900;                                                        // in
+                                                                                                             // seconds
   private String                   classpath;
   private String[]                 command;
   private Process                  process;
   private boolean                  running;
   private boolean                  addL1Repos = true;
-  private final List<StreamCopier> copiers    = Collections
-                                                  .synchronizedList(new ArrayList<StreamCopier>());
+  private final List<StreamCopier> copiers    = Collections.synchronizedList(new ArrayList<StreamCopier>());
 
-  public LinkedJavaProcess(String mainClassName, List<String> classArguments,
-      List<String> jvmArgs) {
+  public LinkedJavaProcess(String mainClassName, List<String> classArguments, List<String> jvmArgs) {
     this.mainClassName = mainClassName;
     this.javaArguments = jvmArgs == null ? new ArrayList<String>() : jvmArgs;
     this.arguments = classArguments == null ? new ArrayList<String>() : classArguments;
@@ -114,9 +110,9 @@ public class LinkedJavaProcess extends Process {
     addL1Repos = flag;
   }
 
+  @Override
   public synchronized void destroy() {
-    if (!this.running)
-      throw new IllegalStateException("This LinkedJavaProcess is not running.");
+    if (!this.running) throw new IllegalStateException("This LinkedJavaProcess is not running.");
     this.process.destroy();
     this.running = false;
   }
@@ -132,37 +128,31 @@ public class LinkedJavaProcess extends Process {
       File javaExe = new File(javaBin, "java.exe");
 
       if (this.javaExecutable == null) {
-        if (javaPlain.exists() && javaPlain.isFile())
-          this.javaExecutable = javaPlain;
+        if (javaPlain.exists() && javaPlain.isFile()) this.javaExecutable = javaPlain;
       }
 
       if (this.javaExecutable == null) {
-        if (javaExe.exists() && javaExe.isFile())
-          this.javaExecutable = javaExe;
+        if (javaExe.exists() && javaExe.isFile()) this.javaExecutable = javaExe;
       }
 
       if (this.javaExecutable == null) {
         // formatting
-        throw new IOException(
-            "Can't find the Java binary; perhaps you need to set it yourself? Tried "
-                + javaPlain.getAbsolutePath() + " and "
-                + javaExe.getAbsolutePath());
+        throw new IOException("Can't find the Java binary; perhaps you need to set it yourself? Tried "
+                              + javaPlain.getAbsolutePath() + " and " + javaExe.getAbsolutePath());
       }
     }
   }
 
   public synchronized void start() throws IOException {
-    if (this.running)
-      throw new IllegalStateException(
-          "This LinkedJavaProcess is already running.");
+    if (this.running) throw new IllegalStateException("This LinkedJavaProcess is already running.");
 
     HeartBeatService.startHeartBeatService();
 
     List<String> fullCommandList = new ArrayList<String>();
     List<String> allJavaArguments = new ArrayList<String>();
 
-    allJavaArguments.add("-Djava.class.path=" + (classpath == null ? System
-        .getProperty("java.class.path") : classpath));
+    allJavaArguments
+        .add("-Djava.class.path=" + (classpath == null ? System.getProperty("java.class.path") : classpath));
 
     String l1Repos = System.getProperty("com.tc.l1.modules.repositories");
     if (l1Repos != null && addL1Repos) {
@@ -186,20 +176,18 @@ public class LinkedJavaProcess extends Process {
     fullCommandList.add(mainClassName);
     fullCommandList.addAll(arguments);
 
-    command = (String[]) fullCommandList
-        .toArray(new String[fullCommandList.size()]);
-    
+    command = fullCommandList.toArray(new String[fullCommandList.size()]);
+
     System.err.println("Start java process with command: " + fullCommandList);
-    this.process = Runtime.getRuntime().exec(command, makeEnv(env),
-        this.directory);
+    this.process = Runtime.getRuntime().exec(command, makeEnv(env), this.directory);
     this.running = true;
   }
 
   private Map<String, String> makeEnvMap(List<String> list) {
     Map<String, String> rv = new HashMap<String, String>();
 
-    for (Iterator<String> iter = list.iterator(); iter.hasNext();) {
-      String[] nameValue = iter.next().split("=", 2);
+    for (String string : list) {
+      String[] nameValue = string.split("=", 2);
       rv.put(nameValue[0], nameValue[1]);
     }
 
@@ -232,18 +220,16 @@ public class LinkedJavaProcess extends Process {
             break;
           }
         }
-        if (i > 'z')
-          throw new RuntimeException("Can't find windir");
+        if (i > 'z') throw new RuntimeException("Can't find windir");
         env.put("SYSTEMROOT", root);
       }
 
-      String crappleDirs = "C:\\Program Files\\Rendezvous\\"
-          + File.pathSeparator + "C:\\Program Files\\Bonjour\\";
+      String crappleDirs = "C:\\Program Files\\Rendezvous\\" + File.pathSeparator + "C:\\Program Files\\Bonjour\\";
 
       if (!env.containsKey("PATH")) {
         env.put("PATH", crappleDirs);
       } else {
-        String path = (String) env.get("PATH");
+        String path = env.get("PATH");
         path = path + File.pathSeparator + crappleDirs;
         env.put("PATH", path);
       }
@@ -251,20 +237,16 @@ public class LinkedJavaProcess extends Process {
   }
 
   /**
-   * Java names these things a bit funny &mdash; this is the spawned process's
-   * <tt>stdout</tt>.
+   * Java names these things a bit funny &mdash; this is the spawned process's <tt>stdout</tt>.
    */
+  @Override
   public synchronized InputStream getInputStream() {
-    if (!this.running)
-      throw new IllegalStateException(
-          "This LinkedJavaProcess is not yet running.");
+    if (!this.running) throw new IllegalStateException("This LinkedJavaProcess is not yet running.");
     return this.process.getInputStream();
   }
-  
+
   public synchronized String[] getCommand() {
-    if (!this.running)
-      throw new IllegalStateException(
-          "This LinkedJavaProcess is not yet running.");
+    if (!this.running) throw new IllegalStateException("This LinkedJavaProcess is not yet running.");
     return this.command;
   }
 
@@ -305,28 +287,24 @@ public class LinkedJavaProcess extends Process {
   /**
    * This is the spawned process's <tt>stderr</tt>.
    */
+  @Override
   public synchronized InputStream getErrorStream() {
-    if (!this.running)
-      throw new IllegalStateException(
-          "This LinkedJavaProcess is not yet running.");
+    if (!this.running) throw new IllegalStateException("This LinkedJavaProcess is not yet running.");
     return this.process.getErrorStream();
   }
 
   /**
-   * Java names these things a bit funny &mdash; this is the spawned process's
-   * <tt>stdin</tt>.
+   * Java names these things a bit funny &mdash; this is the spawned process's <tt>stdin</tt>.
    */
+  @Override
   public synchronized OutputStream getOutputStream() {
-    if (!this.running)
-      throw new IllegalStateException(
-          "This LinkedJavaProcess is not yet running.");
+    if (!this.running) throw new IllegalStateException("This LinkedJavaProcess is not yet running.");
     return this.process.getOutputStream();
   }
 
+  @Override
   public synchronized int exitValue() {
-    if (this.process == null)
-      throw new IllegalStateException(
-          "This LinkedJavaProcess has not been started.");
+    if (this.process == null) throw new IllegalStateException("This LinkedJavaProcess has not been started.");
     int out = this.process.exitValue();
     // Process.exitValue() throws an exception if not yet terminated, so we know
     // it's terminated now.
@@ -334,13 +312,12 @@ public class LinkedJavaProcess extends Process {
     return out;
   }
 
+  @Override
   public int waitFor() throws InterruptedException {
     Process theProcess = null;
 
     synchronized (this) {
-      if (!this.running)
-        throw new IllegalStateException(
-            "This LinkedJavaProcess is not running.");
+      if (!this.running) throw new IllegalStateException("This LinkedJavaProcess is not running.");
       theProcess = this.process;
     }
 

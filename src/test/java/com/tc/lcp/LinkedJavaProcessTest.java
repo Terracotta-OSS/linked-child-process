@@ -7,12 +7,11 @@ package com.tc.lcp;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-
 import org.junit.Ignore;
 import org.junit.Test;
+
+import java.io.File;
+import java.util.Arrays;
 
 /**
  * Unit test for {@link LinkedJavaProcess}.
@@ -22,8 +21,7 @@ public class LinkedJavaProcessTest {
 
   @Test
   public void testRunsRightCommand() throws Exception {
-    LinkedJavaProcess process = new LinkedJavaProcess(
-        LinkedJavaProcessTestMain1.class.getName());
+    LinkedJavaProcess process = new LinkedJavaProcess(LinkedJavaProcessTestMain1.class.getName());
     process.start();
 
     StreamCollector outCollector = new StreamCollector(process.getInputStream());
@@ -37,10 +35,8 @@ public class LinkedJavaProcessTest {
     outCollector.join(30000);
     errCollector.join(30000);
 
-    assertEquals("Ho there!", ignoreStandardWarnings(errCollector.toString())
-        .trim());
-    assertEquals("Hi there!", ignoreStandardWarnings(outCollector.toString())
-        .trim());
+    assertEquals("Ho there!", ignoreStandardWarnings(errCollector.toString()).trim());
+    assertEquals("Hi there!", ignoreStandardWarnings(outCollector.toString()).trim());
   }
 
   private static String ignoreStandardWarnings(String input) {
@@ -58,9 +54,7 @@ public class LinkedJavaProcessTest {
 
       if (output[i].startsWith("DATA: ")) {
         out.append(output[i].substring("DATA: ".length()) + delimiter);
-        debugPrintln("***** appending ["
-            + output[i].substring("DATA: ".length()) + delimiter
-            + "] to output string");
+        debugPrintln("***** appending [" + output[i].substring("DATA: ".length()) + delimiter + "] to output string");
       }
     }
 
@@ -71,8 +65,7 @@ public class LinkedJavaProcessTest {
 
   @Test
   public void testIO() throws Exception {
-    LinkedJavaProcess process = new LinkedJavaProcess(
-        LinkedJavaProcessTestMain2.class.getName());
+    LinkedJavaProcess process = new LinkedJavaProcess(LinkedJavaProcessTestMain2.class.getName());
     process.start();
 
     StreamCollector outCollector = new StreamCollector(process.getInputStream()); // stdout
@@ -89,16 +82,13 @@ public class LinkedJavaProcessTest {
     outCollector.join(30000);
     errCollector.join(30000);
 
-    assertEquals("out: <Test Input!>",
-        ignoreStandardWarnings(outCollector.toString()).trim());
-    assertEquals("err: <Test Input!>",
-        ignoreStandardWarnings(errCollector.toString()).trim());
+    assertEquals("out: <Test Input!>", ignoreStandardWarnings(outCollector.toString()).trim());
+    assertEquals("err: <Test Input!>", ignoreStandardWarnings(errCollector.toString()).trim());
   }
 
   @Test
   public void testExitCode() throws Exception {
-    LinkedJavaProcess process = new LinkedJavaProcess(
-        LinkedJavaProcessTestMain3.class.getName());
+    LinkedJavaProcess process = new LinkedJavaProcess(LinkedJavaProcessTestMain3.class.getName());
     process.start();
 
     process.waitFor();
@@ -107,8 +97,7 @@ public class LinkedJavaProcessTest {
 
   @Test
   public void testSetup() throws Exception {
-    LinkedJavaProcess process = new LinkedJavaProcess(
-        LinkedJavaProcessTestMain4.class.getName());
+    LinkedJavaProcess process = new LinkedJavaProcess(LinkedJavaProcessTestMain4.class.getName());
 
     File dir = getTempFile("mydir");
     dir.mkdirs();
@@ -143,14 +132,12 @@ public class LinkedJavaProcessTest {
   @Test
   @Ignore
   public void testMaxRuntime() throws Exception {
-    LinkedJavaProcess process = new LinkedJavaProcess(
-        LinkedJavaProcessTestMain6.class.getName());
+    LinkedJavaProcess process = new LinkedJavaProcess(LinkedJavaProcessTestMain6.class.getName());
     System.out.println("Set max runtime to 3s");
     process.setMaxRuntime(3);
     process.start();
     Thread.sleep(7000);
-    System.out
-        .println("After waiting for 7s. This process should have been shutdown");
+    System.out.println("After waiting for 7s. This process should have been shutdown");
     assertEquals(255, process.exitValue());
   }
 
@@ -159,9 +146,8 @@ public class LinkedJavaProcessTest {
     File destFile = getTempFile("tkpkc-file");
     File child1File = new File(destFile.getAbsolutePath() + "-child-1");
     File child2File = new File(destFile.getAbsolutePath() + "-child-2");
-    LinkedJavaProcess process = new LinkedJavaProcess(
-        LinkedJavaProcessTestMain5.class.getName(), Arrays.asList(
-            destFile.getAbsolutePath(), "true"));
+    LinkedJavaProcess process = new LinkedJavaProcess(LinkedJavaProcessTestMain5.class.getName(),
+                                                      Arrays.asList(destFile.getAbsolutePath(), "true"));
 
     process.start();
 
@@ -202,8 +188,7 @@ public class LinkedJavaProcessTest {
     Thread.sleep(5000);
     long newSize = destFile.length();
 
-    System.err.println("Parent after kill: new=" + newSize + "  old="
-        + origSize);
+    System.err.println("Parent after kill: new=" + newSize + "  old=" + origSize);
     assertEquals(origSize, newSize); // Make sure the parent is dead
 
     long child1OrigSize = child1File.length();
@@ -211,10 +196,8 @@ public class LinkedJavaProcessTest {
     Thread.sleep(5000);
     long child1NewSize = child1File.length();
     long child2NewSize = child2File.length();
-    System.err.println("Child 1 after kill: new=" + child1NewSize + "  old="
-        + child1OrigSize);
-    System.err.println("Child 2 after kill: new=" + child2NewSize + "  old="
-        + child2OrigSize);
+    System.err.println("Child 1 after kill: new=" + child1NewSize + "  old=" + child1OrigSize);
+    System.err.println("Child 2 after kill: new=" + child2NewSize + "  old=" + child2OrigSize);
 
     assertEquals(child1NewSize, child1OrigSize); // Make sure child 1 is dead
     assertEquals(child2NewSize, child2OrigSize); // Make sure child 2 is dead
@@ -226,7 +209,7 @@ public class LinkedJavaProcessTest {
     }
   }
 
-  private File getTempFile(String filename) throws IOException {
+  private File getTempFile(String filename) {
     return new File("target", filename);
   }
 }
