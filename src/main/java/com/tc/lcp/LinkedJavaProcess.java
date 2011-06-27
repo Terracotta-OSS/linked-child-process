@@ -16,11 +16,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A child Java process that uses a socket-based ping protocol to make sure that
- * if the parent dies, the child dies a short time thereafter. Useful for
- * avoiding 'zombie child processes' when writing tests, etc. &mdash; otherwise,
- * if the parent process crashes or otherwise terminates abnormally, you'll get
- * child processes accumulating until all hell breaks loose on the box. </p>
+ * A child Java process that uses a socket-based ping protocol to make sure that if the parent dies, the child dies a
+ * short time thereafter. Useful for avoiding 'zombie child processes' when writing tests, etc. &mdash; otherwise, if
+ * the parent process crashes or otherwise terminates abnormally, you'll get child processes accumulating until all hell
+ * breaks loose on the box. </p>
  * <p>
  * Although it can't actually be related through Java inheritance (because {@link Process}is a class, not an interface),
  * this class behaves essentially identical to {@link Process}with two differences:
@@ -184,7 +183,7 @@ public class LinkedJavaProcess extends Process {
   }
 
   private Map<String, String> makeEnvMap(List<String> list) {
-    Map<String, String> rv = new HashMap<String, String>();
+    Map<String, String> rv = new HashMap(System.getenv());
 
     for (String string : list) {
       String[] nameValue = string.split("=", 2);
