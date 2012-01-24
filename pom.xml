@@ -13,7 +13,7 @@
   <packaging>jar</packaging>
   <groupId>org.terracotta</groupId>
   <artifactId>linked-child-process</artifactId>
-  <version>1.0.6-SNAPSHOT</version>
+  <version>1.0.6</version>
   <name>linked-child-process</name>
   <description>Utility library for tests to clean up stray processes</description>
 
@@ -23,37 +23,6 @@
       <url>http://www.terracotta.org/license.txt</url>
     </license>
   </licenses>
-
-  <scm>
-    <connection>scm:git:git@github.softwareag.com:Terracotta-OSS/linked-child-process.git</connection>
-    <developerConnection>scm:git:https://github.softwareag.com/Terracotta-OSS/linked-child-process.git</developerConnection>
-    <url>https://github.softwareag.com/Terracotta-OSS/linked-child-process</url>
-  </scm>
-
-  <developers>
-    <developer>
-      <id>hhuynh</id>
-      <name>Hung Huynh</name>
-      <email>hhuynh@terracotta.org</email>
-      <organization>Terracotta</organization>
-      <organizationUrl>http://www.terracotta.org</organizationUrl>
-      <roles>
-        <role>developer</role>
-      </roles>
-      <timezone>-8</timezone>
-    </developer>
-    <developer>
-      <id>jvoegele</id>
-      <name>Jason Voegele</name>
-      <email>jvoegele@terracotta.org</email>
-      <organization>Terracotta</organization>
-      <organizationUrl>http://www.terracotta.org</organizationUrl>
-      <roles>
-        <role>developer</role>
-      </roles>
-      <timezone>-5</timezone>
-    </developer>
-  </developers>
 
   <dependencies>
   	<dependency>
@@ -72,26 +41,6 @@
           <source>1.5</source>
           <target>1.5</target>
         </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <configuration>
-          <descriptors>
-            <descriptor>src/main/assembly/src.xml</descriptor>
-            <descriptor>src/main/assembly/bin.xml</descriptor>
-          </descriptors>
-          <tarLongFileMode>gnu</tarLongFileMode>
-          <outputDirectory>${project.build.directory}/site/downloads</outputDirectory>
-        </configuration>
-        <executions>
-          <execution>
-            <phase>site</phase>
-            <goals>
-              <goal>assembly</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>
