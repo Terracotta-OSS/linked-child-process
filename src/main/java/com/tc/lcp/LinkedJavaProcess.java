@@ -5,6 +5,7 @@
 package com.tc.lcp;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -14,6 +15,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.jar.Attributes;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
 
 /**
  * A child Java process that uses a socket-based ping protocol to make sure that if the parent dies, the child dies a
@@ -150,8 +154,9 @@ public class LinkedJavaProcess extends Process {
     List<String> fullCommandList = new ArrayList<String>();
     List<String> allJavaArguments = new ArrayList<String>();
 
-    allJavaArguments
-        .add("-Djava.class.path=" + (classpath == null ? System.getProperty("java.class.path") : classpath));
+    File workingDir = directory != null ? directory : new File(System.getProperty("user.dir"));
+    File generatedClasspathJar = generateClasspathJar(classpath != null ? classpath
+                                                          : System.getProperty("java.class.path"), workingDir);
 
     String l1Repos = System.getProperty("com.tc.l1.modules.repositories");
     if (l1Repos != null && addL1Repos) {
@@ -169,6 +174,8 @@ public class LinkedJavaProcess extends Process {
     fixupEnvironment(env);
 
     fullCommandList.add(javaExecutable.getAbsolutePath());
+    fullCommandList.add("-classpath");
+    fullCommandList.add(generatedClasspathJar.getAbsolutePath());
     fullCommandList.addAll(allJavaArguments);
     fullCommandList.add(LinkedJavaProcessStarter.class.getName());
     fullCommandList.add(Integer.toString(socketPort));
@@ -178,7 +185,7 @@ public class LinkedJavaProcess extends Process {
     command = fullCommandList.toArray(new String[fullCommandList.size()]);
 
     System.err.println("Start java process with command: " + fullCommandList);
-    this.process = Runtime.getRuntime().exec(command, makeEnv(env), this.directory);
+    this.process = Runtime.getRuntime().exec(command, makeEnv(env), workingDir);
     this.running = true;
   }
 
@@ -333,7 +340,43 @@ public class LinkedJavaProcess extends Process {
     }
 
     return exitCode;
+  }
 
+  private File generateClasspathJar(String cp, File workingDir) throws IOException {
+    Manifest manifest = new Manifest();
+    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+    manifest.getMainAttributes().putValue("Class-Path", generateManifestClasspath(cp));
+    File classpathJar = File.createTempFile("lcpclasspath", ".jar", workingDir);
+    JarOutputStream target = null;
+    try {
+      target = new JarOutputStream(new FileOutputStream(classpathJar), manifest);
+    } finally {
+      if (target != null) {
+        try {
+          target.close();
+        } catch (IOException e) {
+          // ignore
+        }
+      }
+    }
+    return classpathJar;
+  }
+
+  private String generateManifestClasspath(String cp) throws IOException {
+    String[] elements = cp.split(File.pathSeparator);
+    StringBuilder sb = new StringBuilder();
+    for (String element : elements) {
+      File f = new File(element);
+      if (f.exists()) {
+        sb.append(f.toURI().toURL().toString()).append(" ");
+      } else {
+        System.out.println("LCP: path element [" + element + "] doesn't exist, ignoring");
+      }
+    }
+    if (sb.length() > 1) {
+      sb.deleteCharAt(sb.length() - 1);
+    }
+    return sb.toString();
   }
 
 }
