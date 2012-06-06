@@ -22,6 +22,7 @@ public class LinkedJavaProcessTest {
   @Test
   public void testRunsRightCommand() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(LinkedJavaProcessTestMain1.class.getName());
+    process.setDirectory(new File("target"));
     process.start();
 
     StreamCollector outCollector = new StreamCollector(process.getInputStream());
@@ -66,6 +67,7 @@ public class LinkedJavaProcessTest {
   @Test
   public void testIO() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(LinkedJavaProcessTestMain2.class.getName());
+    process.setDirectory(new File("target"));
     process.start();
 
     StreamCollector outCollector = new StreamCollector(process.getInputStream()); // stdout
@@ -89,6 +91,7 @@ public class LinkedJavaProcessTest {
   @Test
   public void testExitCode() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(LinkedJavaProcessTestMain3.class.getName());
+    process.setDirectory(new File("target"));
     process.start();
 
     process.waitFor();
@@ -133,6 +136,7 @@ public class LinkedJavaProcessTest {
   @Ignore
   public void testMaxRuntime() throws Exception {
     LinkedJavaProcess process = new LinkedJavaProcess(LinkedJavaProcessTestMain6.class.getName());
+    process.setDirectory(new File("target"));
     System.out.println("Set max runtime to 3s");
     process.setMaxRuntime(3);
     process.start();
@@ -148,6 +152,7 @@ public class LinkedJavaProcessTest {
     File child2File = new File(destFile.getAbsolutePath() + "-child-2");
     LinkedJavaProcess process = new LinkedJavaProcess(LinkedJavaProcessTestMain5.class.getName(),
                                                       Arrays.asList(destFile.getAbsolutePath(), "true"));
+    process.setDirectory(new File("target"));
 
     process.start();
 
