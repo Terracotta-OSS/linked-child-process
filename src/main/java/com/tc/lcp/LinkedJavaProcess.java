@@ -366,6 +366,11 @@ public class LinkedJavaProcess extends Process {
     String[] elements = cp.split(File.pathSeparator);
     StringBuilder sb = new StringBuilder();
     for (String element : elements) {
+      element = element.trim();
+      if (element.length() == 0) {
+        continue;
+      }
+
       File f = new File(element);
       if (f.exists()) {
         sb.append(f.toURI().toURL().toString()).append(" ");
