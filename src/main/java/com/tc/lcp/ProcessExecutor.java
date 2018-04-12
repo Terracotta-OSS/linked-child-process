@@ -4,12 +4,12 @@ import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.Advapi32Util;
-import com.sun.jna.platform.win32.Kernel32;
 import com.sun.jna.platform.win32.WinBase;
 import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.WinError;
 import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.ptr.IntByReference;
+import com.tc.lcp.win32.Kernel32;
 
 import java.io.File;
 import java.io.IOException;
@@ -177,35 +177,74 @@ public abstract class ProcessExecutor {
       hChildStd_ERR_Rd = handles[0];
       hChildStd_ERR_Wr = handles[1];
 
+      Kernel32.JOBJECT_EXTENDED_LIMIT_INFORMATION jeli = new Kernel32.JOBJECT_EXTENDED_LIMIT_INFORMATION.ByReference();
+
+      WinNT.HANDLE hJob = Kernel32.INSTANCE.CreateJobObject(null, null);
+      if (hJob.getPointer() == null) {
+        throw new IOException("Cannot create job object : " + Kernel32.INSTANCE.GetLastError());
+      }
+
+      // Hopefully, Windows will kill the job automatically if this process dies
+      // But beware!  Process Explorer can break this by keeping open a handle to all jobs!
+      // http://forum.sysinternals.com/forum_posts.asp?TID=4094
+      jeli.BasicLimitInformation.LimitFlags = Kernel32.JOB_OBJECT_LIMIT_BREAKAWAY_OK | Kernel32.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+      if (!Kernel32.INSTANCE.SetInformationJobObject(hJob, Kernel32.JobObjectExtendedLimitInformation, jeli.getPointer(), jeli.size())) {
+        throw new IOException("Unable to set extended limit information on the job object : " + Kernel32.INSTANCE.GetLastError());
+      }
+
+      // crete job in sandbox with own global atom table
+      Kernel32.JOBOBJECT_BASIC_UI_RESTRICTIONS uli = new Kernel32.JOBOBJECT_BASIC_UI_RESTRICTIONS.ByReference();
+      uli.UIRestrictionsClass = Kernel32.JOB_OBJECT_UILIMIT_GLOBALATOMS;
+
+      if (!Kernel32.INSTANCE.SetInformationJobObject(hJob, Kernel32.JobObjectBasicUIRestrictions, uli.getPointer(), uli.size())) {
+        throw new IOException("Unable to set ui limit information on the job object : " + Kernel32.INSTANCE.GetLastError());
+      }
+
       WinBase.STARTUPINFO startupInfo = new WinBase.STARTUPINFO();
       startupInfo.hStdInput = hChildStd_IN_Rd;
       startupInfo.hStdOutput = hChildStd_OUT_Wr;
       startupInfo.hStdError = hChildStd_ERR_Wr;
       startupInfo.dwFlags |= WinBase.STARTF_USESTDHANDLES;
+
       WinBase.PROCESS_INFORMATION.ByReference processInformation = new WinBase.PROCESS_INFORMATION.ByReference();
+
+      WinDef.DWORD creationFlags = new WinDef.DWORD(
+          Kernel32.CREATE_SUSPENDED |          // Suspend so we can add to job
+              Kernel32.CREATE_BREAKAWAY_FROM_JOB   // Allow ourselves to breakaway from Vista's PCA if necessary
+      );
 
       boolean success = Kernel32.INSTANCE.CreateProcessW(null,
           commandLineStringBuilder.toString().toCharArray(),
           null,
           null,
           true,
-          new WinDef.DWORD(0),
+          creationFlags,
           createLpEnv(env),
           workingDir.getAbsolutePath(),
           startupInfo,
           processInformation);
       if (!success) {
-        throw new IOException("Error executing CreateProcessW");
+        throw new IOException("Error executing CreateProcessW : " + Kernel32.INSTANCE.GetLastError());
       }
 
+      if (!Kernel32.INSTANCE.AssignProcessToJobObject(hJob, processInformation.hProcess)) {
+        throw new IOException("Cannot assign process to job : " + Kernel32.INSTANCE.GetLastError());
+      }
+
+      if (Kernel32.INSTANCE.ResumeThread(processInformation.hThread) <= 0) {
+        throw new IOException("Cannot resume thread : " + Kernel32.INSTANCE.GetLastError());
+      }
+
+
       if (!Kernel32.INSTANCE.CloseHandle(hChildStd_IN_Rd)) {
-        throw new IOException("Error CloseHandle IN_Rd");
+        throw new IOException("Error CloseHandle IN_Rd : " + Kernel32.INSTANCE.GetLastError());
       }
       if (!Kernel32.INSTANCE.CloseHandle(hChildStd_OUT_Wr)) {
-        throw new IOException("Error CloseHandle OUT_Wr");
+        throw new IOException("Error CloseHandle OUT_Wr : " + Kernel32.INSTANCE.GetLastError());
       }
       if (!Kernel32.INSTANCE.CloseHandle(hChildStd_ERR_Wr)) {
-        throw new IOException("Error CloseHandle ERR_Wr");
+        throw new IOException("Error CloseHandle ERR_Wr : " + Kernel32.INSTANCE.GetLastError());
       }
 
       this.processIs = new WinInputStream(hChildStd_OUT_Rd);
@@ -229,6 +268,7 @@ public abstract class ProcessExecutor {
       if (!this.running) {
         return;
       }
+      this.running = false;
       //XXX is exit code 1 okay?
       if (!Kernel32.INSTANCE.TerminateProcess(processInfo.hProcess, 1)) {
         throw new RuntimeException("Error executing TerminateProcess");
@@ -282,7 +322,6 @@ public abstract class ProcessExecutor {
       return exitCode;
     }
 
-
     private static WinNT.HANDLE[] createPipe(boolean out) throws IOException {
       WinBase.SECURITY_ATTRIBUTES securityAttributes = new WinBase.SECURITY_ATTRIBUTES();
       securityAttributes.bInheritHandle = true;
@@ -291,12 +330,12 @@ public abstract class ProcessExecutor {
       WinNT.HANDLEByReference hWritePipe = new WinNT.HANDLEByReference();
 
       if (!Kernel32.INSTANCE.CreatePipe(hReadPipe, hWritePipe, securityAttributes, 0)) {
-        throw new IOException("Error executing CreatePipe");
+        throw new IOException("Error executing CreatePipe : " + Kernel32.INSTANCE.GetLastError());
       }
 
       WinNT.HANDLE handleToMarkAsNotInherited = out ? hReadPipe.getValue() : hWritePipe.getValue();
       if (!Kernel32.INSTANCE.SetHandleInformation(handleToMarkAsNotInherited, WinBase.HANDLE_FLAG_INHERIT, 0)) {
-        throw new IOException("Error executing SetHandleInformation");
+        throw new IOException("Error executing SetHandleInformation : " + Kernel32.INSTANCE.GetLastError());
       }
 
       return new WinNT.HANDLE[]{hReadPipe.getValue(), hWritePipe.getValue()};
@@ -314,8 +353,7 @@ public abstract class ProcessExecutor {
         buffer[0] = (byte) b;
         IntByReference bytesWritten = new IntByReference();
         if (!Kernel32.INSTANCE.WriteFile(handle, buffer, buffer.length, bytesWritten, null)) {
-          int err = Kernel32.INSTANCE.GetLastError();
-          throw new IOException("Error executing WriteFile (WinError=" + err + ")");
+          throw new IOException("Error executing WriteFile : " + Kernel32.INSTANCE.GetLastError());
         }
       }
     }
@@ -335,7 +373,7 @@ public abstract class ProcessExecutor {
           if (err == WinError.ERROR_BROKEN_PIPE) {
             return -1;
           }
-          throw new IOException("Error executing ReadFile: " + err);
+          throw new IOException("Error executing ReadFile : " + err);
         }
         if (bytesRead.getValue() == 0) {
           return -1;

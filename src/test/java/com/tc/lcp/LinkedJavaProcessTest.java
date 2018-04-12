@@ -146,7 +146,6 @@ public class LinkedJavaProcessTest {
   }
 
   @Test
-  @Ignore
   public void testKillingParentKillsChildren() throws Exception {
     File destFile = getTempFile("tkpkc-file");
     File child1File = new File(destFile.getAbsolutePath() + "-child-1");
