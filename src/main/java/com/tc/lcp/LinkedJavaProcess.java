@@ -171,7 +171,6 @@ public class LinkedJavaProcess extends Process {
     int socketPort = HeartBeatService.listenPort();
 
     Map<String, String> env = makeEnvMap(environment);
-    fixupEnvironment(env);
 
     fullCommandList.add(javaExecutable.getAbsolutePath());
     fullCommandList.add("-classpath");
@@ -185,7 +184,7 @@ public class LinkedJavaProcess extends Process {
     String[] command = fullCommandList.toArray(new String[fullCommandList.size()]);
 
     System.err.println("Start java process with command: " + fullCommandList);
-    this.processExecutor = ProcessExecutor.exec(command, makeEnv(env), workingDir);
+    this.processExecutor = ProcessExecutor.exec(command, env, workingDir);
     this.running = true;
   }
 
@@ -199,48 +198,6 @@ public class LinkedJavaProcess extends Process {
     }
 
     return rv;
-  }
-
-  private String[] makeEnv(Map<String, String> env) {
-    int i = 0;
-    String[] rv = new String[env.size()];
-    for (Iterator<String> iter = env.keySet().iterator(); iter.hasNext(); i++) {
-      String key = iter.next();
-      rv[i] = key + "=" + env.get(key);
-    }
-    return rv;
-  }
-
-  private static void fixupEnvironment(Map<String, String> env) {
-    if (ProcessExecutor.isWindows()) {
-      // A bunch of name lookup stuff will fail w/o setting SYSTEMROOT. Also, if
-      // you have apple's rendevous/bonjour
-      // client installed, it needs to be in the PATH such that dnssd.dll will
-      // be found when using DNS
-
-      if (!env.containsKey("SYSTEMROOT")) {
-        String root = ":\\Windows";
-        char i;
-        for (i = 'c'; i <= 'z'; i++) {
-          if (new File(i + root).exists()) {
-            root = i + root;
-            break;
-          }
-        }
-        if (i > 'z') throw new RuntimeException("Can't find windir");
-        env.put("SYSTEMROOT", root);
-      }
-
-      String crappleDirs = "C:\\Program Files\\Rendezvous\\" + File.pathSeparator + "C:\\Program Files\\Bonjour\\";
-
-      if (!env.containsKey("PATH")) {
-        env.put("PATH", crappleDirs);
-      } else {
-        String path = env.get("PATH");
-        path = path + File.pathSeparator + crappleDirs;
-        env.put("PATH", path);
-      }
-    }
   }
 
   /**

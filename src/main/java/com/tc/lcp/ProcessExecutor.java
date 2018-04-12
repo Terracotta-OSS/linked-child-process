@@ -1,6 +1,9 @@
 package com.tc.lcp;
 
+import com.sun.jna.Memory;
+import com.sun.jna.Native;
 import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.Advapi32Util;
 import com.sun.jna.platform.win32.Kernel32;
 import com.sun.jna.platform.win32.WinBase;
 import com.sun.jna.platform.win32.WinDef;
@@ -12,10 +15,13 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Iterator;
+import java.util.Map;
 
 public abstract class ProcessExecutor {
 
-  public static ProcessExecutor exec(String[] command, String[] env, File workingDir) throws IOException {
+  public static ProcessExecutor exec(String[] command, Map<String, String> env, File workingDir) throws IOException {
+    fixupEnvironment(env);
     if (isWindows()) {
       return new Win32ProcessExecutor(command, env, workingDir);
     } else {
@@ -23,8 +29,40 @@ public abstract class ProcessExecutor {
     }
   }
 
-  public static boolean isWindows() {
+  private static boolean isWindows() {
     return System.getProperty("os.name").indexOf("Windows") >= 0;
+  }
+
+  private static void fixupEnvironment(Map<String, String> env) {
+    if (isWindows()) {
+      // A bunch of name lookup stuff will fail w/o setting SYSTEMROOT. Also, if
+      // you have apple's rendevous/bonjour
+      // client installed, it needs to be in the PATH such that dnssd.dll will
+      // be found when using DNS
+
+      if (!env.containsKey("SYSTEMROOT")) {
+        String root = ":\\Windows";
+        char i;
+        for (i = 'c'; i <= 'z'; i++) {
+          if (new File(i + root).exists()) {
+            root = i + root;
+            break;
+          }
+        }
+        if (i > 'z') throw new RuntimeException("Can't find windir");
+        env.put("SYSTEMROOT", root);
+      }
+
+      String crappleDirs = "C:\\Program Files\\Rendezvous\\" + File.pathSeparator + "C:\\Program Files\\Bonjour\\";
+
+      if (!env.containsKey("PATH")) {
+        env.put("PATH", crappleDirs);
+      } else {
+        String path = env.get("PATH");
+        path = path + File.pathSeparator + crappleDirs;
+        env.put("PATH", path);
+      }
+    }
   }
 
   public abstract void destroy();
@@ -45,10 +83,21 @@ public abstract class ProcessExecutor {
     private Process process;
     private String[] command;
 
-    JavaProcessExecutor(String[] command, String[] env, File workingDir) throws IOException {
+    JavaProcessExecutor(String[] command, Map<String, String> env, File workingDir) throws IOException {
       this.command = command;
-      this.process = Runtime.getRuntime().exec(command, env, workingDir);
+      this.process = Runtime.getRuntime().exec(command, makeEnv(env), workingDir);
     }
+
+    private static String[] makeEnv(Map<String, String> env) {
+      int i = 0;
+      String[] rv = new String[env.size()];
+      for (Iterator<String> iter = env.keySet().iterator(); iter.hasNext(); i++) {
+        String key = iter.next();
+        rv[i] = key + "=" + env.get(key);
+      }
+      return rv;
+    }
+
 
     @Override
     public void destroy() {
@@ -102,7 +151,7 @@ public abstract class ProcessExecutor {
     private int exitCode = -1;
     private boolean running;
 
-    Win32ProcessExecutor(String[] command, String[] env, File workingDir) throws IOException {
+    Win32ProcessExecutor(String[] command, Map<String, String> env, File workingDir) throws IOException {
       this.command = command;
       StringBuilder commandLineStringBuilder = new StringBuilder();
       for (String c : command) {
@@ -141,7 +190,7 @@ public abstract class ProcessExecutor {
           null,
           true,
           new WinDef.DWORD(0),
-          Pointer.NULL, //TODO: should be the environment
+          createLpEnv(env),
           workingDir.getAbsolutePath(),
           startupInfo,
           processInformation);
@@ -165,6 +214,14 @@ public abstract class ProcessExecutor {
       this.processInfo = processInformation;
 
       this.running = true;
+    }
+
+    private Pointer createLpEnv(Map<String, String> env) {
+      String environmentBlock = Advapi32Util.getEnvironmentBlock(env);
+      byte[] data = Native.toByteArray(environmentBlock);
+      Pointer pointer = new Memory(data.length);
+      pointer.write(0, data, 0, data.length);
+      return pointer;
     }
 
     @Override
