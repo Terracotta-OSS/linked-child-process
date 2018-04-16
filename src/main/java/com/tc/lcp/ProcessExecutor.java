@@ -314,12 +314,24 @@ public abstract class ProcessExecutor {
       return exitCode;
     }
 
-    public int waitFor() {
+    public int waitFor() throws InterruptedException {
       if (running) {
-        Kernel32.INSTANCE.WaitForSingleObject(processInfo.hProcess, WinBase.INFINITE);
-        IntByReference rc = new IntByReference();
-        Kernel32.INSTANCE.GetExitCodeProcess(processInfo.hProcess, rc);
-        this.exitCode = rc.getValue();
+        while (true) {
+          int rc = Kernel32.INSTANCE.WaitForSingleObject(processInfo.hProcess, 100);
+          if (Thread.interrupted()) {
+            throw new InterruptedException();
+          }
+          if (rc == WinBase.WAIT_FAILED) {
+            throw new RuntimeException("Error calling WaitForSingleObject : " + Kernel32.INSTANCE.GetLastError());
+          }
+          if (rc == WinBase.WAIT_OBJECT_0) {
+            break;
+          }
+        }
+
+        IntByReference exitCodeIntRef = new IntByReference();
+        Kernel32.INSTANCE.GetExitCodeProcess(processInfo.hProcess, exitCodeIntRef);
+        this.exitCode = exitCodeIntRef.getValue();
         this.running = false;
 
         if (!Kernel32.INSTANCE.TerminateJobObject(hJob, TERMINATE_EXIT_CODE)) {
