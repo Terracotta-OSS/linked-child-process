@@ -44,11 +44,11 @@ public class LinkedJavaProcess extends Process {
   private long                     maxRuntime = 900;                                                        // in
                                                                                                              // seconds
   private String                   classpath;
-  private String[]                 command;
-  private Process                  process;
+  private ProcessExecutor          processExecutor;
   private boolean                  running;
   private boolean                  addL1Repos = true;
   private final List<StreamCopier> copiers    = Collections.synchronizedList(new ArrayList<StreamCopier>());
+
 
   public LinkedJavaProcess(String mainClassName, List<String> classArguments, List<String> jvmArgs) {
     this.mainClassName = mainClassName;
@@ -57,7 +57,7 @@ public class LinkedJavaProcess extends Process {
     this.environment = new ArrayList<String>();
     this.directory = null;
     this.javaExecutable = null;
-    this.process = null;
+    this.processExecutor = null;
     this.running = false;
   }
 
@@ -116,7 +116,7 @@ public class LinkedJavaProcess extends Process {
   @Override
   public synchronized void destroy() {
     if (!this.running) throw new IllegalStateException("This LinkedJavaProcess is not running.");
-    this.process.destroy();
+    this.processExecutor.destroy();
     this.running = false;
   }
 
@@ -171,7 +171,6 @@ public class LinkedJavaProcess extends Process {
     int socketPort = HeartBeatService.listenPort();
 
     Map<String, String> env = makeEnvMap(environment);
-    fixupEnvironment(env);
 
     fullCommandList.add(javaExecutable.getAbsolutePath());
     fullCommandList.add("-classpath");
@@ -182,12 +181,13 @@ public class LinkedJavaProcess extends Process {
     fullCommandList.add(mainClassName);
     fullCommandList.addAll(arguments);
 
-    command = fullCommandList.toArray(new String[fullCommandList.size()]);
+    String[] command = fullCommandList.toArray(new String[fullCommandList.size()]);
 
     System.err.println("Start java process with command: " + fullCommandList);
-    this.process = Runtime.getRuntime().exec(command, makeEnv(env), workingDir);
+    this.processExecutor = ProcessExecutor.exec(command, env, workingDir);
     this.running = true;
   }
+
 
   private Map<String, String> makeEnvMap(List<String> list) {
     Map<String, String> rv = new HashMap(System.getenv());
@@ -200,60 +200,18 @@ public class LinkedJavaProcess extends Process {
     return rv;
   }
 
-  private String[] makeEnv(Map<String, String> env) {
-    int i = 0;
-    String[] rv = new String[env.size()];
-    for (Iterator<String> iter = env.keySet().iterator(); iter.hasNext(); i++) {
-      String key = iter.next();
-      rv[i] = key + "=" + env.get(key);
-    }
-    return rv;
-  }
-
-  private static void fixupEnvironment(Map<String, String> env) {
-    if ((System.getProperty("os.name").indexOf("Windows") >= 0)) {
-      // A bunch of name lookup stuff will fail w/o setting SYSTEMROOT. Also, if
-      // you have apple's rendevous/bonjour
-      // client installed, it needs to be in the PATH such that dnssd.dll will
-      // be found when using DNS
-
-      if (!env.containsKey("SYSTEMROOT")) {
-        String root = ":\\Windows";
-        char i;
-        for (i = 'c'; i <= 'z'; i++) {
-          if (new File(i + root).exists()) {
-            root = i + root;
-            break;
-          }
-        }
-        if (i > 'z') throw new RuntimeException("Can't find windir");
-        env.put("SYSTEMROOT", root);
-      }
-
-      String crappleDirs = "C:\\Program Files\\Rendezvous\\" + File.pathSeparator + "C:\\Program Files\\Bonjour\\";
-
-      if (!env.containsKey("PATH")) {
-        env.put("PATH", crappleDirs);
-      } else {
-        String path = env.get("PATH");
-        path = path + File.pathSeparator + crappleDirs;
-        env.put("PATH", path);
-      }
-    }
-  }
-
   /**
    * Java names these things a bit funny &mdash; this is the spawned process's <tt>stdout</tt>.
    */
   @Override
   public synchronized InputStream getInputStream() {
     if (!this.running) throw new IllegalStateException("This LinkedJavaProcess is not yet running.");
-    return this.process.getInputStream();
+    return this.processExecutor.getInputStream();
   }
 
   public synchronized String[] getCommand() {
     if (!this.running) throw new IllegalStateException("This LinkedJavaProcess is not yet running.");
-    return this.command;
+    return this.processExecutor.getCommand();
   }
 
   public InputStream STDOUT() {
@@ -296,7 +254,7 @@ public class LinkedJavaProcess extends Process {
   @Override
   public synchronized InputStream getErrorStream() {
     if (!this.running) throw new IllegalStateException("This LinkedJavaProcess is not yet running.");
-    return this.process.getErrorStream();
+    return this.processExecutor.getErrorStream();
   }
 
   /**
@@ -305,29 +263,27 @@ public class LinkedJavaProcess extends Process {
   @Override
   public synchronized OutputStream getOutputStream() {
     if (!this.running) throw new IllegalStateException("This LinkedJavaProcess is not yet running.");
-    return this.process.getOutputStream();
+    return this.processExecutor.getOutputStream();
   }
 
   @Override
   public synchronized int exitValue() {
-    if (this.process == null) throw new IllegalStateException("This LinkedJavaProcess has not been started.");
-    int out = this.process.exitValue();
-    // Process.exitValue() throws an exception if not yet terminated, so we know
-    // it's terminated now.
+    if (this.processExecutor == null) throw new IllegalStateException("This LinkedJavaProcess has not been started.");
+    int out = this.processExecutor.exitValue();
     this.running = false;
     return out;
   }
 
   @Override
   public int waitFor() throws InterruptedException {
-    Process theProcess = null;
+    ProcessExecutor theProcessExecutor;
 
     synchronized (this) {
       if (!this.running) throw new IllegalStateException("This LinkedJavaProcess is not running.");
-      theProcess = this.process;
+      theProcessExecutor = this.processExecutor;
     }
 
-    int exitCode = theProcess.waitFor();
+    int exitCode = theProcessExecutor.waitFor();
 
     for (Iterator<StreamCopier> i = copiers.iterator(); i.hasNext();) {
       Thread t = i.next();

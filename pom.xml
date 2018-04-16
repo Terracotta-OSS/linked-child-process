@@ -31,6 +31,19 @@
   		<version>4.8.1</version>
   		<scope>test</scope>
   	</dependency>
+
+    <!-- JNA itself, to make native calls -->
+    <dependency>
+      <groupId>net.java.dev.jna</groupId>
+      <artifactId>jna</artifactId>
+      <version>4.5.1</version>
+    </dependency>
+    <!-- JNA's win32 API bindings -->
+    <dependency>
+      <groupId>net.java.dev.jna</groupId>
+      <artifactId>jna-platform</artifactId>
+      <version>4.5.1</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -38,8 +51,8 @@
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <source>1.5</source>
-          <target>1.5</target>
+          <source>1.6</source>
+          <target>1.6</target>
         </configuration>
       </plugin>
     </plugins>
