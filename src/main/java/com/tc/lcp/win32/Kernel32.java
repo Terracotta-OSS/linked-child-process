@@ -119,5 +119,6 @@ public interface Kernel32 extends com.sun.jna.platform.win32.Kernel32 {
   boolean SetInformationJobObject(HANDLE hJob, int JobObjectInfoClass, Pointer lpJobObjectInfo, int cbJobObjectInfoLength);
   boolean AssignProcessToJobObject(HANDLE hJob, HANDLE hProcess);
   int ResumeThread(HANDLE hThread);
+  boolean TerminateJobObject(HANDLE hJob, int uExitCode);
 
 }

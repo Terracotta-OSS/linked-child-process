@@ -142,10 +142,13 @@ public abstract class ProcessExecutor {
    */
   static class Win32ProcessExecutor extends ProcessExecutor {
 
-    private InputStream processIs;
-    private OutputStream processOs;
-    private InputStream processEs;
+    private static final int TERMINATE_EXIT_CODE = 1;
+
+    private Win32PipeInputStream inputStream;
+    private Win32PipeOutputStream outputStream;
+    private Win32PipeInputStream errorStream;
     private WinBase.PROCESS_INFORMATION.ByReference processInfo;
+    private WinNT.HANDLE hJob;
 
     private String[] command;
     private int exitCode = -1;
@@ -157,6 +160,7 @@ public abstract class ProcessExecutor {
       for (String c : command) {
         commandLineStringBuilder.append(c).append(" ");
       }
+      commandLineStringBuilder.setCharAt(commandLineStringBuilder.length() - 1, '\0');
 
       WinNT.HANDLE hChildStd_IN_Rd;
       WinNT.HANDLE hChildStd_IN_Wr;
@@ -177,16 +181,12 @@ public abstract class ProcessExecutor {
       hChildStd_ERR_Rd = handles[0];
       hChildStd_ERR_Wr = handles[1];
 
-      Kernel32.JOBJECT_EXTENDED_LIMIT_INFORMATION jeli = new Kernel32.JOBJECT_EXTENDED_LIMIT_INFORMATION.ByReference();
-
-      WinNT.HANDLE hJob = Kernel32.INSTANCE.CreateJobObject(null, null);
+      hJob = Kernel32.INSTANCE.CreateJobObject(null, null);
       if (hJob.getPointer() == null) {
         throw new IOException("Cannot create job object : " + Kernel32.INSTANCE.GetLastError());
       }
 
-      // Hopefully, Windows will kill the job automatically if this process dies
-      // But beware!  Process Explorer can break this by keeping open a handle to all jobs!
-      // http://forum.sysinternals.com/forum_posts.asp?TID=4094
+      Kernel32.JOBJECT_EXTENDED_LIMIT_INFORMATION jeli = new Kernel32.JOBJECT_EXTENDED_LIMIT_INFORMATION.ByReference();
       jeli.BasicLimitInformation.LimitFlags = Kernel32.JOB_OBJECT_LIMIT_BREAKAWAY_OK | Kernel32.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 
       if (!Kernel32.INSTANCE.SetInformationJobObject(hJob, Kernel32.JobObjectExtendedLimitInformation, jeli.getPointer(), jeli.size())) {
@@ -225,7 +225,7 @@ public abstract class ProcessExecutor {
           startupInfo,
           processInformation);
       if (!success) {
-        throw new IOException("Error executing CreateProcessW : " + Kernel32.INSTANCE.GetLastError());
+        throw new IOException("Error calling CreateProcessW : " + Kernel32.INSTANCE.GetLastError());
       }
 
       if (!Kernel32.INSTANCE.AssignProcessToJobObject(hJob, processInformation.hProcess)) {
@@ -236,6 +236,9 @@ public abstract class ProcessExecutor {
         throw new IOException("Cannot resume thread : " + Kernel32.INSTANCE.GetLastError());
       }
 
+      if (!Kernel32.INSTANCE.CloseHandle(processInformation.hThread)) {
+        throw new IOException("Error CloseHandle hThread : " + Kernel32.INSTANCE.GetLastError());
+      }
 
       if (!Kernel32.INSTANCE.CloseHandle(hChildStd_IN_Rd)) {
         throw new IOException("Error CloseHandle IN_Rd : " + Kernel32.INSTANCE.GetLastError());
@@ -247,9 +250,9 @@ public abstract class ProcessExecutor {
         throw new IOException("Error CloseHandle ERR_Wr : " + Kernel32.INSTANCE.GetLastError());
       }
 
-      this.processIs = new WinInputStream(hChildStd_OUT_Rd);
-      this.processOs = new WinOutputStream(hChildStd_IN_Wr);
-      this.processEs = new WinInputStream(hChildStd_ERR_Rd);
+      this.inputStream = new Win32PipeInputStream(hChildStd_OUT_Rd);
+      this.outputStream = new Win32PipeOutputStream(hChildStd_IN_Wr);
+      this.errorStream = new Win32PipeInputStream(hChildStd_ERR_Rd);
       this.processInfo = processInformation;
 
       this.running = true;
@@ -269,15 +272,22 @@ public abstract class ProcessExecutor {
         return;
       }
       this.running = false;
-      //XXX is exit code 1 okay?
-      if (!Kernel32.INSTANCE.TerminateProcess(processInfo.hProcess, 1)) {
-        throw new RuntimeException("Error executing TerminateProcess");
+
+      if (!Kernel32.INSTANCE.TerminateJobObject(hJob, TERMINATE_EXIT_CODE)) {
+        throw new RuntimeException("Error calling TerminateJobObject : " + Kernel32.INSTANCE.GetLastError());
+      }
+      this.exitCode = TERMINATE_EXIT_CODE;
+      if (!Kernel32.INSTANCE.CloseHandle(hJob)) {
+        throw new RuntimeException("Error calling CloseHandle on hJob : " + Kernel32.INSTANCE.GetLastError());
+      }
+      if (!Kernel32.INSTANCE.CloseHandle(processInfo.hProcess)) {
+        throw new RuntimeException("Error calling CloseHandle on hProcess : " + Kernel32.INSTANCE.GetLastError());
       }
     }
 
     @Override
     public InputStream getInputStream() {
-      return processIs;
+      return inputStream;
     }
 
     @Override
@@ -287,37 +297,51 @@ public abstract class ProcessExecutor {
 
     @Override
     public InputStream getErrorStream() {
-      return processEs;
+      return errorStream;
     }
 
     @Override
     public OutputStream getOutputStream() {
-      return processOs;
+      return outputStream;
     }
 
     @Override
     public int exitValue() {
       if (running) {
+        // throw the same exception as java.lang.Process.exitValue()
         throw new IllegalThreadStateException("process has not exited");
       }
       return exitCode;
     }
 
-    public int waitFor() throws InterruptedException {
+    public int waitFor() {
       if (running) {
         Kernel32.INSTANCE.WaitForSingleObject(processInfo.hProcess, WinBase.INFINITE);
         IntByReference rc = new IntByReference();
         Kernel32.INSTANCE.GetExitCodeProcess(processInfo.hProcess, rc);
         this.exitCode = rc.getValue();
-
-        Kernel32.INSTANCE.CloseHandle(processInfo.hProcess);
-        Kernel32.INSTANCE.CloseHandle(processInfo.hThread);
-
-        Kernel32.INSTANCE.CloseHandle(((WinInputStream) processIs).handle);
-        Kernel32.INSTANCE.CloseHandle(((WinInputStream) processEs).handle);
-        Kernel32.INSTANCE.CloseHandle(((WinOutputStream) processOs).handle);
-
         this.running = false;
+
+        if (!Kernel32.INSTANCE.TerminateJobObject(hJob, TERMINATE_EXIT_CODE)) {
+          throw new RuntimeException("Error calling TerminateJobObject : " + Kernel32.INSTANCE.GetLastError());
+        }
+        if (!Kernel32.INSTANCE.CloseHandle(hJob)) {
+          throw new RuntimeException("Error calling CloseHandle on hJob : " + Kernel32.INSTANCE.GetLastError());
+        }
+
+        if (!Kernel32.INSTANCE.CloseHandle(processInfo.hProcess)) {
+          throw new RuntimeException("Error calling CloseHandle on hProcess: " + Kernel32.INSTANCE.GetLastError());
+        }
+
+        if (!Kernel32.INSTANCE.CloseHandle(inputStream.handle)) {
+          throw new RuntimeException("Error calling CloseHandle on inputStream: " + Kernel32.INSTANCE.GetLastError());
+        }
+        if (!Kernel32.INSTANCE.CloseHandle(outputStream.handle)) {
+          throw new RuntimeException("Error calling CloseHandle on outputStream: " + Kernel32.INSTANCE.GetLastError());
+        }
+        if (!Kernel32.INSTANCE.CloseHandle(errorStream.handle)) {
+          throw new RuntimeException("Error calling CloseHandle on errorStream: " + Kernel32.INSTANCE.GetLastError());
+        }
       }
       return exitCode;
     }
@@ -330,21 +354,21 @@ public abstract class ProcessExecutor {
       WinNT.HANDLEByReference hWritePipe = new WinNT.HANDLEByReference();
 
       if (!Kernel32.INSTANCE.CreatePipe(hReadPipe, hWritePipe, securityAttributes, 0)) {
-        throw new IOException("Error executing CreatePipe : " + Kernel32.INSTANCE.GetLastError());
+        throw new IOException("Error calling CreatePipe : " + Kernel32.INSTANCE.GetLastError());
       }
 
       WinNT.HANDLE handleToMarkAsNotInherited = out ? hReadPipe.getValue() : hWritePipe.getValue();
       if (!Kernel32.INSTANCE.SetHandleInformation(handleToMarkAsNotInherited, WinBase.HANDLE_FLAG_INHERIT, 0)) {
-        throw new IOException("Error executing SetHandleInformation : " + Kernel32.INSTANCE.GetLastError());
+        throw new IOException("Error calling SetHandleInformation on created pipe : " + Kernel32.INSTANCE.GetLastError());
       }
 
       return new WinNT.HANDLE[]{hReadPipe.getValue(), hWritePipe.getValue()};
     }
 
-    static class WinOutputStream extends OutputStream {
+    static class Win32PipeOutputStream extends OutputStream {
       private final WinNT.HANDLE handle;
 
-      WinOutputStream(WinNT.HANDLE handle) {
+      Win32PipeOutputStream(WinNT.HANDLE handle) {
         this.handle = handle;
       }
 
@@ -353,15 +377,15 @@ public abstract class ProcessExecutor {
         buffer[0] = (byte) b;
         IntByReference bytesWritten = new IntByReference();
         if (!Kernel32.INSTANCE.WriteFile(handle, buffer, buffer.length, bytesWritten, null)) {
-          throw new IOException("Error executing WriteFile : " + Kernel32.INSTANCE.GetLastError());
+          throw new IOException("Error calling WriteFile : " + Kernel32.INSTANCE.GetLastError());
         }
       }
     }
 
-    static class WinInputStream extends InputStream {
+    static class Win32PipeInputStream extends InputStream {
       private final WinNT.HANDLE handle;
 
-      WinInputStream(WinNT.HANDLE handle) {
+      Win32PipeInputStream(WinNT.HANDLE handle) {
         this.handle = handle;
       }
 
@@ -373,7 +397,7 @@ public abstract class ProcessExecutor {
           if (err == WinError.ERROR_BROKEN_PIPE) {
             return -1;
           }
-          throw new IOException("Error executing ReadFile : " + err);
+          throw new IOException("Error calling ReadFile : " + err);
         }
         if (bytesRead.getValue() == 0) {
           return -1;
