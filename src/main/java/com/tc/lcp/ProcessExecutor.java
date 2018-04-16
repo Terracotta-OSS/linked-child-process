@@ -221,7 +221,7 @@ public abstract class ProcessExecutor {
           true,
           creationFlags,
           createLpEnv(env),
-          workingDir.getAbsolutePath(),
+          shortenedPath(workingDir.getAbsolutePath()),
           startupInfo,
           processInformation);
       if (!success) {
@@ -256,6 +256,22 @@ public abstract class ProcessExecutor {
       this.processInfo = processInformation;
 
       this.running = true;
+    }
+
+    private static final String LONG_PATH_UNC_PREFIX = "\\\\?\\";
+
+    private String shortenedPath(String absolutePath) throws IOException {
+      char[] buffer = new char[1024];
+      int copied = Kernel32.INSTANCE.GetShortPathName(LONG_PATH_UNC_PREFIX + absolutePath, buffer, buffer.length);
+      if (copied < 1) {
+        throw new IOException("GetShortPathName error : " + Kernel32.INSTANCE.GetLastError());
+      }
+
+      String shortenedAbsolutePath = new String(buffer, 0, copied);
+      if (shortenedAbsolutePath.startsWith(LONG_PATH_UNC_PREFIX)) {
+        shortenedAbsolutePath = shortenedAbsolutePath.substring(LONG_PATH_UNC_PREFIX.length());
+      }
+      return shortenedAbsolutePath;
     }
 
     private Pointer createLpEnv(Map<String, String> env) {
