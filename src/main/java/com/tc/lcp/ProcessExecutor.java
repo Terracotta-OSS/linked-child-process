@@ -158,7 +158,7 @@ public abstract class ProcessExecutor {
       this.command = command;
       StringBuilder commandLineStringBuilder = new StringBuilder();
       for (String c : command) {
-        commandLineStringBuilder.append(c).append(" ");
+        commandLineStringBuilder.append("\"").append(c).append("\" ");
       }
       commandLineStringBuilder.setCharAt(commandLineStringBuilder.length() - 1, '\0');
 
