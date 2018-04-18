@@ -11,12 +11,16 @@ import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.ptr.IntByReference;
 import com.tc.lcp.win32.Kernel32;
 
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class ProcessExecutor {
 
@@ -143,6 +147,7 @@ public abstract class ProcessExecutor {
   static class Win32ProcessExecutor extends ProcessExecutor {
 
     private static final int TERMINATE_EXIT_CODE = 1;
+    private static final int UNKNOWN_EXIT_CODE = 99;
 
     private Win32PipeInputStream inputStream;
     private Win32PipeOutputStream outputStream;
@@ -153,6 +158,7 @@ public abstract class ProcessExecutor {
     private String[] command;
     private int exitCode = -1;
     private boolean running;
+    private final Object waitForLock = new Object();
 
     Win32ProcessExecutor(String[] command, Map<String, String> env, File workingDir) throws IOException {
       this.command = command;
@@ -284,21 +290,7 @@ public abstract class ProcessExecutor {
 
     @Override
     public void destroy() {
-      if (!this.running) {
-        return;
-      }
-      this.running = false;
-
-      if (!Kernel32.INSTANCE.TerminateJobObject(hJob, TERMINATE_EXIT_CODE)) {
-        throw new RuntimeException("Error calling TerminateJobObject : " + Kernel32.INSTANCE.GetLastError());
-      }
-      this.exitCode = TERMINATE_EXIT_CODE;
-      if (!Kernel32.INSTANCE.CloseHandle(hJob)) {
-        throw new RuntimeException("Error calling CloseHandle on hJob : " + Kernel32.INSTANCE.GetLastError());
-      }
-      if (!Kernel32.INSTANCE.CloseHandle(processInfo.hProcess)) {
-        throw new RuntimeException("Error calling CloseHandle on hProcess : " + Kernel32.INSTANCE.GetLastError());
-      }
+      terminateProcess();
     }
 
     @Override
@@ -323,16 +315,24 @@ public abstract class ProcessExecutor {
 
     @Override
     public int exitValue() {
-      if (running) {
-        // throw the same exception as java.lang.Process.exitValue()
-        throw new IllegalThreadStateException("process has not exited");
+      synchronized (this) {
+        if (running) {
+          // throw the same exception as java.lang.Process.exitValue()
+          throw new IllegalThreadStateException("process has not exited");
+        }
+        return exitCode;
       }
-      return exitCode;
     }
 
     public int waitFor() throws InterruptedException {
-      if (running) {
+      synchronized (waitForLock) {
         while (true) {
+          synchronized (this) {
+            if (!running) {
+              return exitCode;
+            }
+          }
+
           int rc = Kernel32.INSTANCE.WaitForSingleObject(processInfo.hProcess, 100);
           if (Thread.interrupted()) {
             throw new InterruptedException();
@@ -343,35 +343,63 @@ public abstract class ProcessExecutor {
           if (rc == WinBase.WAIT_OBJECT_0) {
             break;
           }
+          // else rc == WinBase.WAIT_TIMEOUT
         }
 
-        IntByReference exitCodeIntRef = new IntByReference();
-        Kernel32.INSTANCE.GetExitCodeProcess(processInfo.hProcess, exitCodeIntRef);
-        this.exitCode = exitCodeIntRef.getValue();
-        this.running = false;
-
-        if (!Kernel32.INSTANCE.TerminateJobObject(hJob, TERMINATE_EXIT_CODE)) {
-          throw new RuntimeException("Error calling TerminateJobObject : " + Kernel32.INSTANCE.GetLastError());
-        }
-        if (!Kernel32.INSTANCE.CloseHandle(hJob)) {
-          throw new RuntimeException("Error calling CloseHandle on hJob : " + Kernel32.INSTANCE.GetLastError());
-        }
-
-        if (!Kernel32.INSTANCE.CloseHandle(processInfo.hProcess)) {
-          throw new RuntimeException("Error calling CloseHandle on hProcess: " + Kernel32.INSTANCE.GetLastError());
-        }
-
-        if (!Kernel32.INSTANCE.CloseHandle(inputStream.handle)) {
-          throw new RuntimeException("Error calling CloseHandle on inputStream: " + Kernel32.INSTANCE.GetLastError());
-        }
-        if (!Kernel32.INSTANCE.CloseHandle(outputStream.handle)) {
-          throw new RuntimeException("Error calling CloseHandle on outputStream: " + Kernel32.INSTANCE.GetLastError());
-        }
-        if (!Kernel32.INSTANCE.CloseHandle(errorStream.handle)) {
-          throw new RuntimeException("Error calling CloseHandle on errorStream: " + Kernel32.INSTANCE.GetLastError());
+        synchronized (this) {
+          if (!running) {
+            return exitCode;
+          }
+          terminateProcess();
+          return exitCode;
         }
       }
-      return exitCode;
+    }
+
+    private synchronized void terminateProcess() {
+      if (!running) {
+        return;
+      }
+      this.running = false;
+
+      List<String> errors = new ArrayList<String>();
+      if (!Kernel32.INSTANCE.TerminateJobObject(hJob, TERMINATE_EXIT_CODE)) {
+        errors.add("Error calling TerminateJobObject : " + Kernel32.INSTANCE.GetLastError());
+      }
+      IntByReference exitCodeIntRef = new IntByReference();
+      if (!Kernel32.INSTANCE.GetExitCodeProcess(processInfo.hProcess, exitCodeIntRef)) {
+        errors.add("Error calling GetExitCodeProcess : " + Kernel32.INSTANCE.GetLastError());
+        this.exitCode = UNKNOWN_EXIT_CODE;
+      } else {
+        this.exitCode = exitCodeIntRef.getValue();
+      }
+
+      if (!Kernel32.INSTANCE.CloseHandle(hJob)) {
+        errors.add("Error calling CloseHandle on hJob : " + Kernel32.INSTANCE.GetLastError());
+      }
+      if (!Kernel32.INSTANCE.CloseHandle(processInfo.hProcess)) {
+        errors.add("Error calling CloseHandle on hProcess : " + Kernel32.INSTANCE.GetLastError());
+      }
+
+      try {
+        inputStream.close();
+      } catch (IOException ioe) {
+        errors.add("inputStream " + ioe.getMessage());
+      }
+      try {
+        outputStream.close();
+      } catch (IOException ioe) {
+        errors.add("outputStream " + ioe.getMessage());
+      }
+      try {
+        errorStream.close();
+      } catch (IOException ioe) {
+        errors.add("errorStream " + ioe.getMessage());
+      }
+
+      if (!errors.isEmpty()) {
+        throw new RuntimeException("Error(s) terminating process: " + errors.toString());
+      }
     }
 
     private static WinNT.HANDLE[] createPipe(boolean out) throws IOException {
@@ -395,37 +423,70 @@ public abstract class ProcessExecutor {
 
     static class Win32PipeOutputStream extends OutputStream {
       private final WinNT.HANDLE handle;
+      private final byte[] buffer = new byte[1];
+      private final IntByReference bytesWritten = new IntByReference();
+      private final AtomicBoolean closed = new AtomicBoolean(false);
 
       Win32PipeOutputStream(WinNT.HANDLE handle) {
         this.handle = handle;
       }
 
+      @Override
+      public void close() throws IOException {
+        if (closed.compareAndSet(false, true)) {
+          if (!Kernel32.INSTANCE.CloseHandle(handle)) {
+            throw new IOException("Error calling CloseHandle : " + Kernel32.INSTANCE.GetLastError());
+          }
+        }
+      }
+
       public void write(int b) throws IOException {
-        byte[] buffer = new byte[1];
         buffer[0] = (byte) b;
-        IntByReference bytesWritten = new IntByReference();
-        if (!Kernel32.INSTANCE.WriteFile(handle, buffer, buffer.length, bytesWritten, null)) {
-          throw new IOException("Error calling WriteFile : " + Kernel32.INSTANCE.GetLastError());
+        if (!Kernel32.INSTANCE.WriteFile(handle, buffer, 1, bytesWritten, null)) {
+          int err = Kernel32.INSTANCE.GetLastError();
+          switch (err) {
+            case WinError.ERROR_BROKEN_PIPE: // sub-process died on its own
+            case WinError.ERROR_INVALID_HANDLE: // stream got closed by another thread
+              throw new EOFException();
+            default:
+              throw new IOException("Error calling WriteFile : " + err);
+          }
+        }
+        if (bytesWritten.getValue() == 0) {
+          throw new EOFException();
         }
       }
     }
 
     static class Win32PipeInputStream extends InputStream {
       private final WinNT.HANDLE handle;
+      private final byte[] buffer = new byte[1];
+      private final IntByReference bytesRead = new IntByReference();
+      private final AtomicBoolean closed = new AtomicBoolean(false);
 
       Win32PipeInputStream(WinNT.HANDLE handle) {
         this.handle = handle;
       }
 
-      public int read() throws IOException {
-        byte[] buffer = new byte[1];
-        IntByReference bytesRead = new IntByReference();
-        if (!Kernel32.INSTANCE.ReadFile(handle, buffer, buffer.length, bytesRead, null)) {
-          int err = Kernel32.INSTANCE.GetLastError();
-          if (err == WinError.ERROR_BROKEN_PIPE) {
-            return -1;
+      @Override
+      public void close() throws IOException {
+        if (closed.compareAndSet(false, true)) {
+          if (!Kernel32.INSTANCE.CloseHandle(handle)) {
+            throw new IOException("Error calling CloseHandle : " + Kernel32.INSTANCE.GetLastError());
           }
-          throw new IOException("Error calling ReadFile : " + err);
+        }
+      }
+
+      public int read() throws IOException {
+        if (!Kernel32.INSTANCE.ReadFile(handle, buffer, 1, bytesRead, null)) {
+          int err = Kernel32.INSTANCE.GetLastError();
+          switch (err) {
+            case WinError.ERROR_BROKEN_PIPE: // sub-process died on its own
+            case WinError.ERROR_INVALID_HANDLE: // stream got closed by another thread
+              return -1;
+            default:
+              throw new IOException("Error calling ReadFile : " + err);
+          }
         }
         if (bytesRead.getValue() == 0) {
           return -1;
@@ -433,7 +494,6 @@ public abstract class ProcessExecutor {
         return buffer[0];
       }
     }
-
   }
 
 }
