@@ -129,7 +129,6 @@ public class LinkedJavaProcessTest {
     assertEquals("", ignoreStandardWarnings(err).trim());
 
     assertTrue(output.indexOf("ljpt.foo=myprop") >= 0);
-    assertTrue(output.toLowerCase().indexOf(pwd.toLowerCase()) >= 0);
   }
 
   @Test
