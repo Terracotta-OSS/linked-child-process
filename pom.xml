@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.terracotta.forge</groupId>
     <artifactId>forge-parent</artifactId>
-    <version>3.24</version>
+    <version>4.8</version>
   </parent>
 
   <packaging>jar</packaging>
@@ -25,13 +25,6 @@
   </licenses>
 
   <dependencies>
-  	<dependency>
-  		<groupId>junit</groupId>
-  		<artifactId>junit</artifactId>
-  		<version>4.8.1</version>
-  		<scope>test</scope>
-  	</dependency>
-
     <!-- JNA itself, to make native calls -->
     <dependency>
       <groupId>net.java.dev.jna</groupId>
@@ -45,18 +38,6 @@
       <version>4.5.1</version>
     </dependency>
   </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <source>1.6</source>
-          <target>1.6</target>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
 
   <repositories>
     <repository>

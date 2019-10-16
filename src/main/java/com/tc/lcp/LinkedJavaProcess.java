@@ -122,26 +122,31 @@ public class LinkedJavaProcess extends Process {
 
   private synchronized void setJavaExecutableIfNecessary() throws IOException {
     if (this.javaExecutable == null) {
-      if (javaHome == null) {
-        javaHome = new File(System.getProperty("java.home"));
-      }
+      String testVM = System.getProperty("testVM");
+      if (testVM != null) {
+        this.javaExecutable = new File(testVM);
+      } else {
+        if (javaHome == null) {
+          javaHome = new File(System.getProperty("java.home"));
+        }
 
-      File javaBin = new File(javaHome, "bin");
-      File javaPlain = new File(javaBin, "java");
-      File javaExe = new File(javaBin, "java.exe");
+        File javaBin = new File(javaHome, "bin");
+        File javaPlain = new File(javaBin, "java");
+        File javaExe = new File(javaBin, "java.exe");
 
-      if (this.javaExecutable == null) {
-        if (javaPlain.exists() && javaPlain.isFile()) this.javaExecutable = javaPlain;
-      }
+        if (this.javaExecutable == null) {
+          if (javaPlain.exists() && javaPlain.isFile()) this.javaExecutable = javaPlain;
+        }
 
-      if (this.javaExecutable == null) {
-        if (javaExe.exists() && javaExe.isFile()) this.javaExecutable = javaExe;
-      }
+        if (this.javaExecutable == null) {
+          if (javaExe.exists() && javaExe.isFile()) this.javaExecutable = javaExe;
+        }
 
-      if (this.javaExecutable == null) {
-        // formatting
-        throw new IOException("Can't find the Java binary; perhaps you need to set it yourself? Tried "
-                              + javaPlain.getAbsolutePath() + " and " + javaExe.getAbsolutePath());
+        if (this.javaExecutable == null) {
+          // formatting
+          throw new IOException("Can't find the Java binary; perhaps you need to set it yourself? Tried "
+              + javaPlain.getAbsolutePath() + " and " + javaExe.getAbsolutePath());
+        }
       }
     }
   }
