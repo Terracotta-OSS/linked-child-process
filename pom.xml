@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <properties>
     <forgeTags>API, Utility, Library</forgeTags>
+  
+    <metadata.build.jenkins.url>http://jenkins.terracotta.eur.ad.sag:8080/job/linked_child_process_releaser/11/</metadata.build.jenkins.url>
+    <metadata.build.maven.active.profiles>terracotta-repositories,release,tc-publish,fullmode</metadata.build.maven.active.profiles>
+    <metadata.svn.revision>52960</metadata.svn.revision>
   </properties>
 
   <modelVersion>4.0.0</modelVersion>
@@ -13,7 +17,7 @@
   <packaging>jar</packaging>
   <groupId>org.terracotta</groupId>
   <artifactId>linked-child-process</artifactId>
-  <version>1.0.14-SNAPSHOT</version>
+  <version>1.0.14</version>
   <name>linked-child-process</name>
   <description>Utility library for tests to clean up stray processes</description>
 
