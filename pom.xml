@@ -9,17 +9,13 @@
   <packaging>jar</packaging>
   <groupId>org.terracotta</groupId>
   <artifactId>linked-child-process</artifactId>
-  <version>1.0.17</version>
+  <version>1.0.18-SNAPSHOT</version>
   <name>linked-child-process</name>
   <description>Utility library for tests to clean up stray processes</description>
 
   <properties>
     <forgeTags>API, Utility, Library</forgeTags>
     <jna.version>5.5.0</jna.version>
-  
-    <metadata.build.jenkins.url>http://jenkins.terracotta.eur.ad.sag:8080/job/linked_child_process_releaser/14/</metadata.build.jenkins.url>
-    <metadata.build.maven.active.profiles>terracotta-repositories,release,tc-publish,fullmode</metadata.build.maven.active.profiles>
-    <metadata.svn.revision>53192</metadata.svn.revision>
   </properties>
 
   <licenses>
