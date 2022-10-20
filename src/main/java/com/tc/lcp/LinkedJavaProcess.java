@@ -199,7 +199,7 @@ public class LinkedJavaProcess extends Process {
   }
 
   /**
-   * Java names these things a bit funny &mdash; this is the spawned process's <tt>stdout</tt>.
+   * Java names these things a bit funny &mdash; this is the spawned process's <code>stdout</code>.
    */
   @Override
   public synchronized InputStream getInputStream() {
@@ -247,7 +247,7 @@ public class LinkedJavaProcess extends Process {
   }
 
   /**
-   * This is the spawned process's <tt>stderr</tt>.
+   * This is the spawned process's <code>stderr</code>.
    */
   @Override
   public synchronized InputStream getErrorStream() {
@@ -256,7 +256,7 @@ public class LinkedJavaProcess extends Process {
   }
 
   /**
-   * Java names these things a bit funny &mdash; this is the spawned process's <tt>stdin</tt>.
+   * Java names these things a bit funny &mdash; this is the spawned process's <code>stdin</code>.
    */
   @Override
   public synchronized OutputStream getOutputStream() {
