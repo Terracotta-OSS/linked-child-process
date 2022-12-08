@@ -18,7 +18,7 @@ public class LinkedJavaProcessTestMain5 {
 
   public static void main(String[] args) throws Exception {
     File destFile = new File(args[0]);
-    boolean spawnChildren = new Boolean(args[1]).booleanValue();
+    boolean spawnChildren = Boolean.parseBoolean(args[1]);
 
     if (spawnChildren) {
       LinkedJavaProcess child1 = new LinkedJavaProcess(

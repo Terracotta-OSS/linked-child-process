@@ -139,8 +139,15 @@ public abstract class ProcessExecutor {
      * Update: Found recent issue where a path had \.\ in it. This causes the kernel32 call to fail. Added logic to remove.
      */
     private static File shortenedPath(File workingDir) throws IOException {
-      String absoluteLongUncPrefixedPath = "\\\\?\\" + workingDir.getAbsolutePath().replace("\\.\\", "\\");
-      char[] buffer = new char[64];
+      String absoluteLongUncPrefixedPath;
+
+      try {
+        absoluteLongUncPrefixedPath = "\\\\?\\" + workingDir.getCanonicalPath();
+      } catch (Exception e) {
+        throw new IOException("GetShortPathName failed getCanononicalPath: " + e.getMessage());
+      }
+
+      char[] buffer = new char[256];
       int shortPathLength = Kernel32.INSTANCE.GetShortPathName(absoluteLongUncPrefixedPath, buffer, buffer.length);
       if (shortPathLength > buffer.length) {
         // buffer is too small, realloc and retry
