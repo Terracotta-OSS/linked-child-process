@@ -136,9 +136,10 @@ public abstract class ProcessExecutor {
      * Since a process' path cannot be longer than 260 chars (MAX_PATH) or the CreateProcess syscall will fail with
      * ERROR_DIRECTORY (267) let's hope that makes the path short enough.
      * Beware the "user.dir" system property in the child process as it may not match char-to-char the path specified by the parent!
+     * Update: Found recent issue where a path had \.\ in it. This causes the kernel32 call to fail. Added logic to remove.
      */
     private static File shortenedPath(File workingDir) throws IOException {
-      String absoluteLongUncPrefixedPath = "\\\\?\\" + workingDir.getAbsolutePath();
+      String absoluteLongUncPrefixedPath = "\\\\?\\" + workingDir.getAbsolutePath().replace("\\.\\", "\\");
       char[] buffer = new char[64];
       int shortPathLength = Kernel32.INSTANCE.GetShortPathName(absoluteLongUncPrefixedPath, buffer, buffer.length);
       if (shortPathLength > buffer.length) {
