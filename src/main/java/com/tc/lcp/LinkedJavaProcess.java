@@ -19,6 +19,9 @@ import java.util.jar.Attributes;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
+import static java.lang.Integer.parseInt;
+import static java.lang.System.getProperty;
+
 /**
  * A child Java process that uses a socket-based ping protocol to make sure that if the parent dies, the child dies a
  * short time thereafter. Useful for avoiding 'zombie child processes' when writing tests, etc. &mdash; otherwise, if
@@ -171,6 +174,14 @@ public class LinkedJavaProcess extends Process {
     Map<String, String> env = makeEnvMap(environment);
 
     fullCommandList.add(javaExecutable.getAbsolutePath());
+
+    if (parseInt(getProperty("java.specification.version").split("\\.")[0]) >= 16) {
+      String[] opens = {"lang", "io", "util", "security", "net"};
+      for (String open : opens) {
+        fullCommandList.add("--add-opens=java.base/java." + open + "=ALL-UNNAMED");
+      }
+    }
+
     fullCommandList.add("-classpath");
     fullCommandList.add(generatedClasspathJar.getAbsolutePath());
     fullCommandList.addAll(allJavaArguments);
