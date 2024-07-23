@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!--
 
-  All content copyright (c) 2003-2008 Terracotta, Inc.,
-  except as may otherwise be noted in a separate copyright notice.
-  All rights reserved.
-
+  Copyright 2003-2008 Terracotta, Inc.
+  Copyright Super iPaaS Integration LLC, an IBM Company 2024
+  
 -->
 <assembly>
   <id>src</id>
