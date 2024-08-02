@@ -10,7 +10,7 @@
   <packaging>jar</packaging>
   <groupId>org.terracotta</groupId>
   <artifactId>linked-child-process</artifactId>
-  <version>2.0.3-SNAPSHOT</version>
+  <version>2.0.3</version>
   <name>linked-child-process</name>
   <description>Utility library for tests to clean up stray processes</description>
 
